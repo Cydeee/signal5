@@ -1,140 +1,31 @@
 // netlify/edge-functions/data.js
-export const config = { path: ["/data", "/data.json"], cache: "manual" };
+export const config={path:['/data','/data.json'],cache:'manual'};
+export default async function handler(request){if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET, OPTIONS','Access-Control-Allow-Headers':'Content-Type'}});const wantJson=new URL(request.url).pathname.endsWith('/data.json');try{const p=await buildDashboardData(request);p.timestamp=Date.now();const body=wantJson?JSON.stringify(p):`<!DOCTYPE html><html><body><pre id="dashboard-data">${JSON.stringify(p)}</pre></body></html>`;const h=wantJson?{'Content-Type':'application/json; charset=utf-8','Access-Control-Allow-Origin':'*','Cache-Control':'public, max-age=0, must-revalidate','CDN-Cache-Control':'public, s-maxage=60, must-revalidate'}:{'Content-Type':'text/html; charset=utf-8','Access-Control-Allow-Origin':'*'};return new Response(body,{headers:h})}catch(e){console.error('Edge Function error',e);return new Response('Service temporarily unavailable.',{status:500,headers:{'Content-Type':'text/html; charset=utf-8'}})}}
 
-export default async function handler(request) {
-  if (request.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-    });
-  }
-  const wantJson = new URL(request.url).pathname.endsWith("/data.json");
-  try {
-    const payload = await buildDashboardData(request);
-    payload.timestamp = Date.now();
+const safeJson=async u=>{const r=await fetch(u);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json()};
+const sma=(a,p)=>a.slice(-p).reduce((s,x)=>s+x,0)/p;
+const ema=(a,p)=>{if(a.length<p)return 0;const k=2/(p+1);let e=sma(a.slice(0,p),p);for(let i=p;i<a.length;i++)e=a[i]*k+e*(1-k);return e};
+const rsi=(a,p)=>{if(a.length<p+1)return 0;let u=0,d=0;for(let i=1;i<=p;i++){const v=a[i]-a[i-1];v>=0?u+=v:d-=v;}let au=u/p,ad=d/p;for(let i=p+1;i<a.length;i++){const v=a[i]-a[i-1];au=(au*(p-1)+Math.max(v,0))/p;ad=(ad*(p-1)+Math.max(-v,0))/p;}return ad?100-100/(1+au/ad):100};
+const atr=(h,l,c,p)=>{if(h.length<p+1)return 0;let tr=[];for(let i=1;i<h.length;i++)tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));return sma(tr,p)};
+const roc=(a,n)=>a.length>=n+1?((a.at(-1)-a.at(-(n+1)))/a.at(-(n+1)))*100:0;
 
-    const body = wantJson
-      ? JSON.stringify(payload)
-      : `<!DOCTYPE html><html><body><pre id="dashboard-data">${JSON.stringify(payload)}</pre></body></html>`;
-
-    return new Response(body, {
-      headers: wantJson
-        ? {
-            "Content-Type": "application/json; charset=utf-8",
-            "Access-Control-Allow-Origin": "*",
-            "Cache-Control": "public, max-age=0, must-revalidate",
-            "CDN-Cache-Control": "public, s-maxage=60, must-revalidate",
-          }
-        : {
-            "Content-Type": "text/html; charset=utf-8",
-            "Access-Control-Allow-Origin": "*",
-          },
-    });
-  } catch (err) {
-    console.error("Edge Function error", err);
-    return new Response("Service temporarily unavailable.", {
-      status: 500,
-      headers: { "Content-Type": "text/html; charset=utf-8" },
-    });
-  }
-}
-
-async function buildDashboardData(request) {
-  const SYMBOL = "BTCUSDT";
-  const LIMIT = 250;
-  const result = {
-    dataA: {},   // indicators
-    dataB: null, // derivatives + liquidations
-    dataC: {},   // ROC
-    dataD: {},   // volume
-    dataE: null, // stress
-    dataF: null, // structure
-    dataG: null, // macro
-    dataH: null, // sentiment
-    errors: [],
-  };
-
-  /* helpers */
-  const safeJson = async (u) => {
-    const r = await fetch(u);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.json();
-  };
-  // … sma, ema, rsi, atr, roc as before …
-
-  /* BLOCK A indicators */
-  // … unchanged …
-
-  /* BLOCK B derivatives + BTC liquidations */
-  try {
-    // – Derivatives (fundingZ, oiDelta24h) as before –
-    const fr = await safeJson(
-      `https://fapi.binance.com/fapi/v1/fundingRate?symbol=${SYMBOL}&limit=1000`
-    );
-    const rates = fr.slice(-42).map((d) => +d.fundingRate);
-    const mean = rates.reduce((s, x) => s + x, 0) / rates.length;
-    const sd = Math.sqrt(
-      rates.reduce((s, x) => s + (x - mean) ** 2, 0) / rates.length
-    );
-    const fundingZ = sd
-      ? ((rates.at(-1) - mean) / sd).toFixed(2)
-      : "0.00";
-
-    const oiNow = await safeJson(
-      `https://fapi.binance.com/fapi/v1/openInterest?symbol=${SYMBOL}`
-    );
-    const oiHist = await safeJson(
-      `https://fapi.binance.com/futures/data/openInterestHist?symbol=${SYMBOL}&period=1h&limit=24`
-    );
-    const oiDelta24h = (
-      (+oiNow.openInterest - +oiHist[0].sumOpenInterest) /
-      +oiHist[0].sumOpenInterest *
-      100
-    ).toFixed(1);
-
-    // – Fetch your pre‑scraped liquidations JSON from GitHub Pages –
-    const liqUrl = new URL("/data/totalLiquidations.json", request.url).href;
-    const liqJson = await safeJson(liqUrl);
-    const btcLiq = (liqJson.data || []).find((r) => r.symbol === "BTC") || {};
-
-    result.dataB = {
-      fundingZ,
-      oiDelta24h,
-      liquidations: {
-        long1h:  btcLiq.long1h   ?? null,
-        short1h: btcLiq.short1h  ?? null,
-        long4h:  btcLiq.long4h   ?? null,
-        short4h: btcLiq.short4h  ?? null,
-        long24h: btcLiq.long24h  ?? null,
-        short24h:btcLiq.short24h ?? null,
-      },
-    };
-  } catch (e) {
-    result.dataB = { fundingZ: null, oiDelta24h: null, liquidations: null };
-    result.errors.push("B: " + e.message);
-  }
-
-  /* BLOCK C ROC */
-  // … unchanged …
-
-  /* BLOCK D volume */
-  // … unchanged …
-
-  /* BLOCK E stress */
-  // … unchanged …
-
-  /* BLOCK F market structure */
-  // … unchanged …
-
-  /* BLOCK G macro */
-  // … unchanged …
-
-  /* BLOCK H sentiment */
-  // … unchanged …
-
-  return result;
+async function buildDashboardData(request){
+  const S='BTCUSDT',L=250,res={dataA:{},dataB:null,dataC:{},dataD:{},dataE:null,dataF:null,dataG:null,dataH:null,errors:[]};
+  // Block A
+  for(const tf of['15m','1h','4h','1d'])try{const k=await safeJson(`https://api.binance.com/api/v3/klines?symbol=${S}&interval=${tf}&limit=${L}`),c=k.map(r=>+r[4]),h=k.map(r=>+r[2]),l=k.map(r=>+r[3]),lst=c.at(-1)||1,emi=ema(c,50),em200=ema(c,200),m=k.map((_,i)=>ema(c.slice(0,i+1),12)-ema(c.slice(0,i+1),26)),mh=m.at(-1)-ema(m,9);res.dataA[tf]={ema50:+emi.toFixed(2),ema200:+em200.toFixed(2),rsi14:+rsi(c,14).toFixed(1),atrPct:+((atr(h,l,c,14)/lst)*100).toFixed(2),macdHist:+mh.toFixed(2)}}catch(e){res.errors.push(`A[${tf}]: ${e.message}`)}
+  // Block B
+  try{const fr=await safeJson(`https://fapi.binance.com/fapi/v1/fundingRate?symbol=${S}&limit=1000`),rt=fr.slice(-42).map(d=>+d.fundingRate),m=rt.reduce((s,x)=>s+x,0)/rt.length,sd=Math.sqrt(rt.reduce((s,x)=>s+(x-m)**2,0)/rt.length),fz=sd?((rt.at(-1)-m)/sd).toFixed(2):'0.00',oi=await safeJson(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${S}`),oh=await safeJson(`https://fapi.binance.com/futures/data/openInterestHist?symbol=${S}&period=1h&limit=24`),d24=((+oi.openInterest-+oh[0].sumOpenInterest)/+oh[0].sumOpenInterest*100).toFixed(1),lj=await safeJson(new URL('/data/totalLiquidations.json',request.url)),b=lj.data.find(x=>x.symbol==='BTC')||{};res.dataB={fundingZ:fz,oiDelta24h:d24,liquidations:{long1h:b.long1h,short1h:b.short1h,long4h:b.long4h,short4h:b.short4h,long24h:b.long24h,short24h:b.short24h}}}catch(e){res.dataB={fundingZ:null,oiDelta24h:null,liquidations:null};res.errors.push(`B: ${e.message}`)}
+  // Block C
+  for(const tf of['15m','1h','4h','1d'])try{const k=await safeJson(`https://api.binance.com/api/v3/klines?symbol=${S}&interval=${tf}&limit=21`),c=k.map(r=>+r[4]);res.dataC[tf]={roc10:+roc(c,10).toFixed(2),roc20:+roc(c,20).toFixed(2)}}catch(e){res.errors.push(`C[${tf}]: ${e.message}`)}
+  // Block D
+  try{const k=await safeJson(`https://api.binance.com/api/v3/klines?symbol=${S}&interval=1m&limit=1500`),now=Date.now(),w={'15m':.25,'1h':1,'4h':4,'24h':24};for(const l in w){let c=now-w[l]*36e5,bu=0,be=0;for(const x of k)if(x[0]>=c)x[4]>=x[1]?bu+=x[5]:be+=x[5];res.dataD[l]={bullVol:+bu.toFixed(2),bearVol:+be.toFixed(2),totalVol:+(bu+be).toFixed(2)}};const t24=res.dataD['24h'].totalVol,b={'15m':t24/96,'1h':t24/24,'4h':t24/6};res.dataD.relative={};for(const l of['15m','1h','4h']){const r=res.dataD[l].totalVol/Math.max(b[l],1);res.dataD.relative[l]=r>2?'very high':r>1.2?'high':r<0.5?'low':'normal'}}catch(e){res.errors.push(`D: ${e.message}`)}
+  // Block E
+  try{const bs=Math.min(3,Math.abs(+res.dataB.fundingZ)),ls=Math.max(0,+res.dataB.oiDelta24h/5),vf=res.dataD.relative['15m'],vs=vf==='very high'?2:vf==='high'?1:0,st=bs+ls+vs;res.dataE={stressIndex:+st.toFixed(2),highRisk:st>=5,components:{biasScore:bs,levScore:ls,volScore:vs,divScore:0},source:'synthetic'}}catch(e){res.dataE=null;res.errors.push(`E: ${e.message}`)}
+  // Block F
+  try{const d=await safeJson(`https://api.binance.com/api/v3/klines?symbol=${S}&interval=1d&limit=2`),[yh,yl,yc]=[+d[0][2],+d[0][3],+d[0][4]],P=(yh+yl+yc)/3,R1=2*P-yl,S1=2*P-yh,m=await safeJson(`https://api.binance.com/api/v3/klines?symbol=${S}&interval=1m&limit=1500`),u=Date.UTC(new Date().getUTCFullYear(),new Date().getUTCMonth(),new Date().getUTCDate()),pv=0,vl=0,pr=[];for(const x of m)if(x[0]>=u){const tp=(+x[2]+ +x[3]+ +x[4])/3;pv+=tp*x[5];vl+=x[5];pr.push(tp)};const vwap=pv/vl,sd=Math.sqrt(pr.reduce((s,x)=>s+(x-vwap)**2,0)/pr.length),ci=await safeJson(`https://api.binance.com/api/v3/klines?symbol=${S}&interval=15m&limit=20`),c15=ci.map(r=>+r[4]);res.dataF={pivot:{P:+P.toFixed(2),R1:+R1.toFixed(2),S1:+S1.toFixed(2)},vwap:{value:+vwap.toFixed(2),band:+sd.toFixed(2)},hhll20:{HH:+Math.max(...c15).toFixed(2),LL:+Math.min(...c15).toFixed(2)}}}catch(e){res.errors.push(`F: ${e.message}`)}
+  // Block G
+  try{const g=await safeJson('https://api.coingecko.com/api/v3/global'),gd=g.data;res.dataG={totalMcapT:+(gd.total_market_cap.usd/1e12).toFixed(2),mcap24hPct:+gd.market_cap_change_percentage_24h_usd.toFixed(2),btcDominance:+gd.market_cap_percentage.btc.toFixed(2),ethDominance:+gd.market_cap_percentage.eth.toFixed(2)}}catch(e){res.errors.push(`G: ${e.message}`)}
+  // Block H
+  try{const f=await safeJson('https://api.alternative.me/fng/?limit=1'),F=f.data[0];if(!F)throw new Error('FNG missing');res.dataH={fearGreed:`${F.value} · ${F.value_classification}`}}catch(e){res.errors.push(`H: ${e.message}`)}
+  return res;
 }
