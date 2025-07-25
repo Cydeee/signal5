@@ -19,6 +19,7 @@ export default async function handler(request) {
   try {
     const payload = await buildDashboardData(request);
     payload.timestamp = Date.now();
+
     if (wantJson) {
       return new Response(JSON.stringify(payload), {
         headers: {
@@ -144,182 +145,13 @@ async function buildDashboardData(request) {
 
   /* BLOCK B derivatives + liquidations */
   try {
-    // derivatives
     const fr = await safeJson(
-      `https://fapi.binance.com/fapi/v1/fundingRate?symbol=${SYMBOL}&limit=1000}`
+      `https://fapi.binance.com/fapi/v1/fundingRate?symbol=${SYMBOL}&limit=1000`
     );
     const rates = fr.slice(-42).map((d) => +d.fundingRate),
       mean = rates.reduce((s, x) => s + x, 0) / rates.length,
-      sd = Math.sqrt(rates.reduce((s, x) => s + (x - mean) ** 2, 0) / rates.length),
+      sd = Math.sqrt(
+        rates.reduce((s, x) => s + (x - mean) ** 2, 0) / rates.length
+      ),
       fundingZ = sd ? ((rates.at(-1) - mean) / sd).toFixed(2) : "0.00";
     const oiNow = await safeJson(
-      `https://fapi.binance.com/fapi/v1/openInterest?symbol=${SYMBOL}`
-    );
-    const oiHist = await safeJson(
-      `https://fapi.binance.com/futures/data/openInterestHist?symbol=${SYMBOL}&period=1h&limit=24`
-    );
-    const oiDelta24h = (
-      (+oiNow.openInterest - +oiHist[0].sumOpenInterest) /
-      +oiHist[0].sumOpenInterest *
-      100
-    ).toFixed(1);
-
-    // liquidations
-    const RAW =
-      "https://raw.githubusercontent.com/Cydeee/Testliquidation/main/data/totalLiquidations.json";
-    const liqJson = await safeJson(RAW);
-    const btc = (liqJson.data || []).find((r) => r.symbol === "BTC") || {};
-
-    result.dataB = {
-      fundingZ,
-      oiDelta24h,
-      liquidations: {
-        long1h: btc.long1h ?? 0,
-        short1h: btc.short1h ?? 0,
-        long4h: btc.long4h ?? 0,
-        short4h: btc.short4h ?? 0,
-        long24h: btc.long24h ?? 0,
-        short24h: btc.short24h ?? 0,
-      },
-    };
-  } catch (e) {
-    result.dataB = { fundingZ: null, oiDelta24h: null, liquidations: null };
-    result.errors.push(`B: ${e.message}`);
-  }
-
-  /* BLOCK C ROC */
-  for (const tf of ["15m", "1h", "4h", "1d"]) {
-    try {
-      const kl = await safeJson(
-        `https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=${tf}&limit=21}`
-      );
-      const closes = kl.map((r) => +r[4]);
-      result.dataC[tf] = {
-        roc10: +roc(closes, 10).toFixed(2),
-        roc20: +roc(closes, 20).toFixed(2),
-      };
-    } catch (e) {
-      result.errors.push(`C[${tf}]: ${e.message}`);
-    }
-  }
-
-  /* BLOCK D volume */
-  try {
-    const kl = await safeJson(
-      `https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=1m&limit=1500}`
-    );
-    const now = Date.now();
-    const windows = { "15m": 0.25, "1h": 1, "4h": 4, "24h": 24 };
-    for (const [lbl, hrs] of Object.entries(windows)) {
-      let bull = 0,
-        bear = 0;
-      const cutoff = now - hrs * 3600000;
-      for (const k of kl)
-        if (+k[0] >= cutoff) +k[4] >= +k[1] ? (bull += +k[5]) : (bear += +k[5]);
-      result.dataD[lbl] = {
-        bullVol: +bull.toFixed(2),
-        bearVol: +bear.toFixed(2),
-        totalVol: +(bull + bear).toFixed(2),
-      };
-    }
-    const tot24 = result.dataD["24h"].totalVol;
-    const base = { "15m": tot24 / 96, "1h": tot24 / 24, "4h": tot24 / 6 };
-    result.dataD.relative = {};
-    for (const lbl of ["15m", "1h", "4h"]) {
-      const r = result.dataD[lbl].totalVol / Math.max(base[lbl], 1);
-      result.dataD.relative[lbl] =
-        r > 2 ? "very high" : r > 1.2 ? "high" : r < 0.5 ? "low" : "normal";
-    }
-  } catch (e) {
-    result.errors.push(`D: ${e.message}`);
-  }
-
-  /* BLOCK E synthetic stress */
-  try {
-    const biasScore = Math.min(3, Math.abs(+result.dataB.fundingZ || 0));
-    const levScore = Math.max(0, (+result.dataB.oiDelta24h || 0) / 5);
-    const volFlag = result.dataD.relative["15m"];
-    const volScore = volFlag === "very high" ? 2 : volFlag === "high" ? 1 : 0;
-    const stress = biasScore + levScore + volScore;
-    result.dataE = {
-      stressIndex: +stress.toFixed(2),
-      highRisk: stress >= 5,
-      components: { biasScore, levScore, volScore, divScore: 0 },
-      source: "synthetic",
-    };
-  } catch (e) {
-    result.dataE = null;
-    result.errors.push(`E-synth: ${e.message}`);
-  }
-
-  /* BLOCK F market structure */
-  try {
-    const dayK = await safeJson(
-      `https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=1d&limit=2}`
-    );
-    const [yH, yL, yC] = [+dayK[0][2], +dayK[0][3], +dayK[0][4]];
-    const P = (yH + yL + yC) / 3;
-    const R1 = 2 * P - yL;
-    const S1 = 2 * P - yH;
-    const min1 = await safeJson(
-      `https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=1m&limit=1500}`
-    );
-    const utc0 = Date.UTC(
-      new Date().getUTCFullYear(),
-      new Date().getUTCMonth(),
-      new Date().getUTCDate()
-    );
-    let pv = 0,
-      vol = 0,
-      prices = [];
-    for (const k of min1)
-      if (+k[0] >= utc0) {
-        const tp = (+k[2] + +k[3] + +k[4]) / 3;
-        pv += tp * k[5];
-        vol += k[5];
-        prices.push(tp);
-      }
-    const vwap = pv / vol;
-    const sd =
-      prices.length > 1
-        ? Math.sqrt(prices.reduce((s, x) => s + (x - vwap) ** 2, 0) / prices.length)
-        : 0;
-    const kl20 = await safeJson(
-      `https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=15m&limit=20}`
-    );
-    const closes20 = kl20.map((r) => +r[4]);
-    result.dataF = {
-      pivot: { P: +P.toFixed(2), R1: +R1.toFixed(2), S1: +S1.toFixed(2) },
-      vwap: { value: +vwap.toFixed(2), band: +sd.toFixed(2) },
-      hhll20: { HH: +Math.max(...closes20).toFixed(2), LL: +Math.min(...closes20).toFixed(2) },
-    };
-  } catch (e) {
-    result.errors.push(`F: ${e.message}`);
-  }
-
-  /* BLOCK G macro */
-  try {
-    const gv = await safeJson("https://api.coingecko.com/api/v3/global");
-    const gd = gv.data;
-    result.dataG = {
-      totalMcapT: +(gd.total_market_cap.usd / 1e12).toFixed(2),
-      mcap24hPct: +gd.market_cap_change_percentage_24h_usd.toFixed(2),
-      btcDominance: +gd.market_cap_percentage.btc.toFixed(2),
-      ethDominance: +gd.market_cap_percentage.eth.toFixed(2),
-    };
-  } catch (e) {
-    result.errors.push(`G: ${e.message}`);
-  }
-
-  /* BLOCK H sentiment */
-  try {
-    const fg = await safeJson("https://api.alternative.me/fng/?limit=1");
-    const fgd = fg.data?.[0];
-    if (!fgd) throw new Error("FNG missing");
-    result.dataH = { fearGreed: `${fgd.value} · ${fgd.value_classification}` };
-  } catch (e) {
-    result.errors.push(`H: ${e.message}`);
-  }
-
-  return result;
-}
