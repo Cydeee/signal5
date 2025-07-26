@@ -5,9 +5,8 @@ on:
     - cron: '*/15 * * * *'   # every 15 min UTC
   workflow_dispatch:
 
-# Default permissions are read-only; we override for the push step.
 permissions:
-  contents: write   # grants write access to the repo for all jobs
+  contents: write
 
 jobs:
   update-live-json:
@@ -17,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true   # make GITHUB_TOKEN available to git
+          persist-credentials: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -27,10 +26,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build public/live.json
+      - name: Run scraper and copy JSON
         run: |
+          # Run your existing scraper which writes to data/totalLiquidations.json
+          node netlify/edge-functions/data.js
+          # Ensure publish folder exists
           mkdir -p public
-          node netlify/edge-functions/data.js > public/live.json
+          # Copy the freshly written JSON into the publish dir
+          cp data/totalLiquidations.json public/live.json
 
       - name: Commit & push public/live.json
         run: |
@@ -48,7 +51,7 @@ jobs:
     needs: update-live-json
     runs-on: ubuntu-latest
     permissions:
-      contents: read    # only needs read access here
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
