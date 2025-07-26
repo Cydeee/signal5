@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 // .github/scripts/alert-live.js
-// Fetch dashboard → score → send Telegram alert if score ≥ THRESHOLD
-
-import fetch from "node-fetch"; // native fetch in Node 18+, import for clarity
+// Fetch dashboard JSON → score → Telegram alert if score ≥ THRESHOLD
 
 // ---- env --------------------------------------------------------------
 const LIVE_URL  = process.env.LIVE_URL  || "https://btcsignal.netlify.app/data.json";
@@ -17,29 +15,28 @@ if (!BOT_TOKEN || !CHAT_ID || !LIVE_URL) {
 
 // ---- network helpers --------------------------------------------------
 async function fetchEdgeData(retries = 4) {
+  const delays = [0, 2000, 5000, 10000];          // ms
   for (let i = 0; i < retries; i++) {
-    const bust = Date.now();
-    const url  = `${LIVE_URL}?bust=${bust}`;
+    const url = `${LIVE_URL}?bust=${Date.now()}`;
     try {
       const res  = await fetch(url, { cache: "no-store" });
       const text = await res.text();
       console.log(`◀ Attempt ${i + 1}: HTTP ${res.status} (${text.length} bytes)`);
       if (res.status === 200) return JSON.parse(text);
       if (i < retries - 1 && [502, 503, 504].includes(res.status)) {
-        await new Promise(r => setTimeout(r, [0, 2000, 5000, 10000][i]));
+        await new Promise(r => setTimeout(r, delays[i]));
         continue;
       }
       throw new Error(`Edge returned ${res.status}`);
     } catch (err) {
       if (i === retries - 1) throw err;
-      await new Promise(r => setTimeout(r, [0, 2000, 5000, 10000][i]));
+      await new Promise(r => setTimeout(r, delays[i]));
     }
   }
 }
 
-// ---- telegram ---------------------------------------------------------
 async function tg(msg) {
-  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+  const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -49,9 +46,11 @@ async function tg(msg) {
       disable_web_page_preview: true
     })
   });
+  const j = await resp.json();
+  if (!j.ok) throw new Error(j.description);
 }
 
-// ---- scoring logic (same as before) -----------------------------------
+// ---- scoring ----------------------------------------------------------
 function score(raw) {
   const A = raw.dataA?.["1h"] || {};
   const B = raw.dataB        || {};
@@ -77,8 +76,8 @@ function score(raw) {
   if (macd > 0) L++; else if (macd < 0) S++;
   if (fund < -1) L++; else if (fund > 1) S++;
   if (s24 > 2 * l24) L++; if (l24 > 2 * s24) S++;
-  if (cvd > 1000 && ["high","very high"].includes(rel15)) L += 2;
-  if (cvd < -1000 && ["high","very high"].includes(rel15)) S += 2;
+  if (cvd > 1000 && ["high", "very high"].includes(rel15)) L += 2;
+  if (cvd < -1000 && ["high", "very high"].includes(rel15)) S += 2;
   if (bull15 > bear15) L++; else if (bear15 > bull15) S++;
   if (price > poc4h) L++; else if (price < poc4h) S++;
   if (stress >= 3 && stress <= 5) { L++; S++; }
