@@ -1,18 +1,25 @@
-# netlify.toml
-
+# ────────────────────────────────────────────────
+# Netlify config – no site build, only Edge Fns
+# ────────────────────────────────────────────────
 [build]
-  # Serve from the repo root since we no longer have a public/ folder
-  publish = "."
-  # No build command needed for edge functions only
-  command = ""
+  # No “npm install”, no “npm run build”
+  command = "echo 'skip site build'"
+  publish = "."                 # nothing to deploy except edge fns
 
-# Edge Functions configuration
+[functions]
+  node_bundler = "esbuild"      # default, keeps edge bundle small
+
 [[edge_functions]]
+  function = "data"             # handles /data and /data.json
   path     = "/data"
-  function = "data"
   cache    = "manual"
 
 [[edge_functions]]
-  path     = "/data.json"
   function = "data"
+  path     = "/data.json"
+  cache    = "manual"
+
+[[edge_functions]]
+  function = "data-page"        # pretty HTML view
+  path     = "/data.html"
   cache    = "manual"
