@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 
 const ENDPOINT = 'https://btcsignal.netlify.app/data.json';
 const TOKEN    = '8417682763:AAGZ1Darr0BgISB9JAG3RzHCQi-uqMylcOw';
-const CHAT_ID  = '-92192621';
+const CHAT_ID  = '6038110897';
 const TEST_ALERT = true;  // <-- still forcing test on every run
 
 // safe getter
