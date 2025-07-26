@@ -1,7 +1,6 @@
 # .github/workflows/update-live.yml
 name: refresh-live-json
 
-# allow commits
 permissions:
   contents: write
 
@@ -25,8 +24,10 @@ jobs:
         with:
           node-version: "18"
 
-      - name: Install deps & generate live.json
+      - name: Install deps & generate live.json (DEBUG)
+        # DEBUG logs all A→H fetches + errors
         env:
+          DEBUG: "true"
           NPM_CONFIG_LOGLEVEL: verbose
         run: |
           echo "▶ npm install"
@@ -36,15 +37,13 @@ jobs:
 
       - name: Debug generated JSON
         run: |
-          echo "::group::public folder contents"
+          echo "🔍 public folder:"
           ls -al public
-          echo "::endgroup::"
-          echo "::group::live.json head"
+          echo "⏱ public/live.json head:"
           head -n20 public/live.json
-          echo "::endgroup::"
-          echo "::group::live.json tail"
+          echo "…"
+          echo "⏱ public/live.json tail:"
           tail -n20 public/live.json
-          echo "::endgroup::"
 
       - name: Commit & push updated live.json
         env:
