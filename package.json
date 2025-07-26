@@ -1,12 +1,13 @@
 {
   "name": "high-conviction-alerts",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "generate-live": "node scripts/generate-live.js",
     "alert": "node .github/scripts/alert.js"
   },
   "dependencies": {
-    "node-fetch": "^3.4.4"
+    "node-fetch": "^3.4.4"      // <-- used only in GitHub Actions
   }
 }
