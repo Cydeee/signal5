@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo (including public/live.json)
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -21,7 +21,16 @@ jobs:
         with:
           node-version: "18"
 
+      - name: Install dependencies & Generate live.json
+        # verbose npm logs will surface any HTTP/parse errors
+        env:
+          NPM_CONFIG_LOGLEVEL: verbose
+        run: |
+          npm install
+          npm run generate-live
+
       - name: Send Telegram alert
-        run: npm run alert
+        # your alert.js will load public/live.json from cwd
         env:
           TEST_ALERT: "0"
+        run: npm run alert
