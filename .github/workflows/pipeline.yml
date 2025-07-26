@@ -2,7 +2,7 @@ name: scrape-and-alert
 
 on:
   schedule:
-    - cron: '*/15 * * * *'   # every 15 min UTC
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -26,14 +26,10 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run scraper and copy JSON
+      - name: Generate public/live.json
         run: |
-          # Run your existing scraper which writes to data/totalLiquidations.json
-          node netlify/edge-functions/data.js
-          # Ensure publish folder exists
           mkdir -p public
-          # Copy the freshly written JSON into the publish dir
-          cp data/totalLiquidations.json public/live.json
+          npm run generate > public/live.json
 
       - name: Commit & push public/live.json
         run: |
