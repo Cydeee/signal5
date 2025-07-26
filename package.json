@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "alert":    "node .github/scripts/alert.js"
+    "alert": "node .github/scripts/alert-live.js"
   },
   "dependencies": {}
 }
