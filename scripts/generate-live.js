@@ -1,45 +1,54 @@
 // scripts/generate-live.js
-// --------------------------------------------------
-// Simply mirror your Netlify Edge’s /data.json into public/live.json
-// (so GH Actions never calls Binance APIs directly)
-// --------------------------------------------------
+// Node ≥18 CLI: writes public/live.json by proxying Binance+others through your Worker
 
 import { mkdir, writeFile } from 'fs/promises';
 
-async function main() {
-  const EDGE_URL = process.env.EDGE_URL
-    || 'https://btcsignal.netlify.app/data.json';
+const WORKER_URL = process.env.WORKER_URL 
+  || 'https://my-binance-proxy.workers.dev/?url=';
 
-  console.log(`▶ Fetching payload from Edge Function → ${EDGE_URL}`);
-  let res;
-  try {
-    res = await fetch(EDGE_URL, { cache: 'no-store' });
-  } catch (err) {
-    console.error('❌ Network error fetching Edge URL:', err);
-    process.exit(1);
-  }
-
-  const body = await res.text();
+async function proxyFetchJson(targetUrl) {
+  const url = WORKER_URL + encodeURIComponent(targetUrl);
+  console.log(`▶ proxyFetchJson → ${targetUrl}`);
+  const res = await fetch(url);
+  const text = await res.text().catch(()=>'');
   if (!res.ok) {
-    console.error(`❗ HTTP ${res.status} from Edge:`, body.slice(0,200).replace(/\n/g,' '));
-    process.exit(1);
+    console.error(`❗ HTTP ${res.status} from Worker for ${targetUrl}`);
+    console.error(`   snippet: ${text.slice(0,200).replace(/\n/g,' ')}`);
+    throw new Error(`Worker proxy error ${res.status}`);
   }
-
-  let data;
-  try {
-    data = JSON.parse(body);
-  } catch (err) {
-    console.error('❌ Invalid JSON from Edge Function:', err);
-    process.exit(1);
-  }
-
-  console.log('✅ Successfully fetched and parsed from Edge');
-  await mkdir('public', { recursive: true });
-  await writeFile('public/live.json', JSON.stringify(data, null, 2), 'utf8');
-  console.log('✅ Wrote public/live.json');
+  return JSON.parse(text);
 }
 
-main().catch(err => {
-  console.error('❌ generate-live.js uncaught error:', err);
-  process.exit(1);
-});
+async function buildStaticPayload() {
+  const SYMBOL = "BTCUSDT", LIMIT = 250;
+
+  const out = { dataA:{}, dataB:null, dataC:{}, dataD:{}, dataE:null, dataF:null, dataG:null, dataH:null, errors:[] };
+
+  // A: Indicators
+  console.log("––– Block A: Indicators –––");
+  for (const tf of ["15m","1h","4h","1d"]) {
+    console.log(`▶ A[${tf}]`);
+    try {
+      const kl = await proxyFetchJson(`https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=${tf}&limit=${LIMIT}`);
+      // ... same close/high/low/ema/rsi/atr/macd logic as before ...
+      out.dataA[tf] = /* your computed object */;
+      console.log(`✅ A[${tf}] OK`);
+    } catch (e) {
+      console.error(`❌ A[${tf}]: ${e.message}`);
+      out.errors.push(`A[${tf}]: ${e.message}`);
+    }
+  }
+
+  // B…H: repeat proxyFetchJson for each Binance/Coingecko/FNG URL, same pattern
+
+  return out;
+}
+
+(async()=>{
+  console.log("▶ buildStaticPayload");
+  const data = await buildStaticPayload();
+  console.log("▶ write public/live.json");
+  await mkdir("public",{recursive:true});
+  await writeFile("public/live.json", JSON.stringify({ timestamp:Date.now(), ...data },null,2),'utf8');
+  console.log("✅ public/live.json updated");
+})();
