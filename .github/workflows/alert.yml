@@ -2,7 +2,7 @@
 name: telegram-alert
 
 permissions:
-  contents: read
+  contents: none
 
 on:
   workflow_dispatch:
@@ -14,10 +14,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout bot code
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -26,22 +24,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          echo "▶ npm install"
           npm install
-
-      - name: Debug local live.json
-        run: |
-          echo "🔍 Checking public/live.json exists and preview:"
-          ls -l public/live.json || { echo "❌ public/live.json not found"; exit 1; }
-          echo "⏱ first 5 lines:"
-          head -n5 public/live.json
-          echo "…"
-          echo "⏱ last 5 lines:"
-          tail -n5 public/live.json
 
       - name: Run Telegram alert
         run: |
-          echo "▶ npm run alert"
-          npm run alert
+          echo "▶ node .github/scripts/alert.js"
+          node .github/scripts/alert.js
         env:
-          TEST_ALERT: "0"
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          LIVE_URL:  "https://btcsignal.netlify.app/data.json"
+          TEST_ALERT:"0"
