@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "generate-live": "node scripts/generate-live.js",
-    "alert": "node .github/scripts/alert.js"
+-   "generate-live": "node scripts/generate-live.js",
+    "alert":    "node .github/scripts/alert.js"
   },
   "dependencies": {}
 }
