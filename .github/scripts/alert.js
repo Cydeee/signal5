@@ -2,116 +2,117 @@ import fetch from 'node-fetch';
 
 const ENDPOINT = 'https://btcsignal.netlify.app/data.json';
 const TOKEN    = '8417682763:AAGZ1Darr0BgISB9JAG3RzHCQi-uqMylcOw';
-const CHAT_ID  = '6038110897';  // your private‑chat ID
+const CHAT_ID  = '6038110897';
 
 // safe getter with default
 const get = (obj, path, def = 0) =>
   path.split('.').reduce((o, k) => (o && o[k] != null ? o[k] : def), obj);
 
-// send a Telegram message
+// send to Telegram
 async function send(msg) {
   await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: CHAT_ID,
-      text: msg,
-      parse_mode: 'Markdown'
-    }),
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ chat_id: CHAT_ID, text: msg, parse_mode: 'Markdown' })
   });
 }
 
 async function main() {
-  // 1) fetch dashboard JSON
+  console.log("⏳ Fetching dashboard JSON...");
   let data;
   try {
     const res = await fetch(ENDPOINT);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    console.log(`HTTP ${res.status} ${res.statusText}`);
     data = await res.json();
   } catch (err) {
-    console.error('Fetch error:', err);
+    console.error("❌ Fetch error:", err);
     await send(`❌ Failed to fetch data.json: ${err.message}`);
     return;
   }
 
-  // 2) extract all metrics
-  const rsi1h    = get(data, 'dataA.1h.rsi14', 50);
-  const macd1h   = get(data, 'dataA.1h.macdHist', 0);
-  const price    = get(data, 'dataA.1h.ema50', 0);
-  const fundingZ = get(data, 'dataB.fundingZ', 0);
-  const long24   = get(data, 'dataB.liquidations.long24h', 0);
-  const short24  = get(data, 'dataB.liquidations.short24h', 0);
-  const cvd1h    = get(data, 'dataD.cvd.1h', 0);
-  const volFlag  = get(data, 'dataD.relative.1h', 'normal');
-  const bull15   = get(data, 'dataD.15m.bullVol', 0);
-  const bear15   = get(data, 'dataD.15m.bearVol', 0);
-  const poc4h    = get(data, 'dataF.vpvr.4h.poc', 0);
-  const stress   = get(data, 'dataE.stressIndex', 0);
+  // extract metrics
+  const metrics = {
+    rsi1h:    get(data,'dataA.1h.rsi14',null),
+    macd1h:   get(data,'dataA.1h.macdHist',null),
+    price:    get(data,'dataA.1h.ema50',null),
+    fundingZ: get(data,'dataB.fundingZ',null),
+    long24:   get(data,'dataB.liquidations.long24h',null),
+    short24:  get(data,'dataB.liquidations.short24h',null),
+    cvd1h:    get(data,'dataD.cvd.1h',null),
+    volFlag:  get(data,'dataD.relative.1h','unknown'),
+    bull15:   get(data,'dataD.15m.bullVol',null),
+    bear15:   get(data,'dataD.15m.bearVol',null),
+    poc4h:    get(data,'dataF.vpvr.4h.poc',null),
+    stress:   get(data,'dataE.stressIndex',null)
+  };
 
-  // 3) scoring
-  const longPts = [], shortPts = [];
+  console.log("▶️ Raw metrics:");
+  Object.entries(metrics).forEach(([k,v]) => console.log(`  ${k.padEnd(8)}: ${v}`));
 
-  if (rsi1h < 35) longPts.push(1);
-  if (rsi1h > 65) shortPts.push(1);
+  // define rules: [ description, condition, points (positive for long, negative for short) ]
+  const rules = [
+    ["RSI1h < 35 (long)",                 () => metrics.rsi1h < 35,       +1],
+    ["RSI1h > 65 (short)",                () => metrics.rsi1h > 65,       -1],
+    ["MACD1h > 0 (long)",                 () => metrics.macd1h > 0,       +1],
+    ["MACD1h < 0 (short)",                () => metrics.macd1h < 0,       -1],
+    ["FundingZ < -1 (long)",              () => metrics.fundingZ < -1,    +1],
+    ["FundingZ > 1 (short)",              () => metrics.fundingZ > 1,     -1],
+    ["Short24h > 2×Long24h (long)",       () => metrics.short24 > metrics.long24*2, +1],
+    ["Long24h > 2×Short24h (short)",      () => metrics.long24  > metrics.short24*2, -1],
+    ["CVD1h>1000 & vol high (long)",      () => metrics.cvd1h > 1000 && ["high","very high"].includes(metrics.volFlag), +2],
+    ["CVD1h<-1000 & vol high (short)",    () => metrics.cvd1h < -1000 && ["high","very high"].includes(metrics.volFlag), -2],
+    ["15m bull>bear (long)",              () => metrics.bull15 > metrics.bear15, +1],
+    ["15m bear>bull (short)",             () => metrics.bear15 > metrics.bull15, -1],
+    ["Price>PoC4h (long)",                () => metrics.price > metrics.poc4h, +1],
+    ["Price<PoC4h (short)",               () => metrics.price < metrics.poc4h, -1],
+    ["Stress 3–5 bonus",                  () => metrics.stress>=3 && metrics.stress<=5, +1],  // adds +1 long & short
+  ];
 
-  if (macd1h > 0) longPts.push(1);
-  if (macd1h < 0) shortPts.push(1);
+  // scoring
+  let longScore = 0, shortScore = 0;
+  console.log("🧮 Evaluating rules:");
+  rules.forEach(([desc,fn,pts]) => {
+    if (fn()) {
+      console.log(`   ✓ ${desc} (pts ${pts})`);
+      if (pts>0) longScore += pts;
+      else shortScore -= pts; // pts negative for short
+    } else {
+      console.log(`   ✗ ${desc}`);
+    }
+  });
 
-  if (fundingZ < -1) longPts.push(1);
-  if (fundingZ >  1) shortPts.push(1);
-
-  if (short24 > long24 * 2) longPts.push(1);
-  if (long24  > short24 * 2) shortPts.push(1);
-
-  if (cvd1h >  1000 && ['high','very high'].includes(volFlag)) longPts.push(2);
-  if (cvd1h < -1000 && ['high','very high'].includes(volFlag)) shortPts.push(2);
-
-  if (bull15 > bear15 * 2) longPts.push(1);
-  if (bear15 > bull15 * 2) shortPts.push(1);
-
-  if (price > poc4h) longPts.push(1);
-  if (price < poc4h) shortPts.push(1);
-
-  // stress gate/bonus
-  if (stress > 7) {
-    console.log(`Stress ${stress} > 7; skipping alerts.`);
+  // Stress gate
+  if (metrics.stress > 7) {
+    console.log(`⚠️ Stress ${metrics.stress} >7 → abort`);
     return;
   }
-  if (stress >= 3 && stress <= 5) {
-    longPts.push(1);
-    shortPts.push(1);
-  }
 
-  const longScore  = longPts.reduce((s,x)=>s+x,0);
-  const shortScore = shortPts.reduce((s,x)=>s+x,0);
-  console.log(`Scores → long:${longScore}, short:${shortScore}, stress:${stress}`);
-
-  // 4) threshold check
+  console.log(`➡️ Total longScore=${longScore}, shortScore=${shortScore}`);
   const threshold = 6;
   let direction = null;
-  if (longScore  >= threshold) direction = 'LONG';
-  if (shortScore >= threshold) direction = 'SHORT';
+  if (longScore >= threshold)   direction = "LONG";
+  if (shortScore >= threshold)  direction = "SHORT";
 
   if (!direction) {
-    console.log('No high‑conviction signal this run.');
+    console.log(`❌ Scores below threshold ${threshold}. No alert.`);
     return;
   }
 
-  // 5) build & send alert
+  // build & send
+  const scoreVal = direction==="LONG" ? longScore : shortScore;
   const msg =
-`🚨 *High‑Conviction ${direction} (score ${direction==="LONG"?longScore:shortScore}/10)* 🚨
+`🚨 *High‑Conviction ${direction} (score ${scoreVal}/10)* 🚨
 
-Price:      \`${price.toFixed(2)}\`
-Stress:     \`${stress}\`
-RSI 1h:     \`${rsi1h}\`
-CVD 1h:     \`${cvd1h}\`
-Funding Z:  \`${fundingZ}\`
-Liq 24h:    long \`${long24}\` | short \`${short24}\``
+Price:      \`${metrics.price}\`
+Stress:     \`${metrics.stress}\`
+RSI 1h:     \`${metrics.rsi1h}\`
+CVD 1h:     \`${metrics.cvd1h}\`
+Funding Z:  \`${metrics.fundingZ}\`
+Liq 24h:    long \`${metrics.long24}\` | short \`${metrics.short24}\``
 
+  console.log("📤 Sending alert:", msg.replace(/\n/g," | "));
   await send(msg);
-  console.log(`Sent alert: ${direction}`);
+  console.log(`✅ Alert sent: ${direction}`);
 }
 
-main().catch(err => {
-  console.error('Unexpected error in alert.js:', err);
-});
+main().catch(err => console.error("❗️ Unexpected error:", err));
