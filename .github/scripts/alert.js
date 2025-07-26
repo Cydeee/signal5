@@ -1,113 +1,71 @@
-import fetch from 'node-fetch';
+// .github/scripts/alert.js
+// NOTE: hard-coded secrets – be sure repo is private!
+const BOT  = '8417682763:AAGZ1Darr0BgISB9JAG3RzHCQi-uqMylcOw';
+const CHAT = '6038110897';          // your private-chat id
 
-const ENDPOINT = 'https://btcsignal.netlify.app/live.json';
-const TOKEN    = '8417682763:AAGZ1Darr0BgISB9JAG3RzHCQi-uqMylcOw';
-const CHAT_ID  = '6038110897';
+const LIVE_URL  = 'https://btcsignal.netlify.app/live.json';
+const THRESHOLD = 6;
+const TEST      = process.env.TEST_ALERT === '1';
 
-const get = (obj, path, def = null) =>
-  path.split('.').reduce((o, k) => (o && o[k] != null ? o[k] : def), obj);
+/* helpers ------------------------------------------------------------ */
+function calcScore(raw){
+  const A = raw.dataA?.['1h'] ?? {};
+  const B = raw.dataB        ?? {};
+  const D = raw.dataD        ?? {};
+  const F = raw.dataF        ?? {};
+  const E = raw.dataE        ?? {};
 
-async function send(text) {
-  await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: CHAT_ID, text, parse_mode: 'Markdown' }),
-  });
+  const rsi   = +A.rsi14   || 0;
+  const macd  = +A.macdHist|| 0;
+  const fundZ = +B.fundingZ|| 0;
+  const long24= +B.liquidations?.long24h  || 0;
+  const short24=+B.liquidations?.short24h || 0;
+  const cvd1h = +D.cvd?.['1h']            || 0;
+  const volFlag=D.relative?.['15m'] || 'unknown';
+  const bull15= +D['15m']?.bullVol || 0;
+  const bear15= +D['15m']?.bearVol || 0;
+  const price = +A.ema50 || 0;
+  const poc4h = +F.vpvr?.['4h']?.poc || 0;
+  const stress= +E.stressIndex || 0;
+
+  let long=0, short=0;
+  if (rsi < 35) long++;        if (rsi > 65) short++;
+  if (macd>0) long++;          if (macd<0) short++;
+  if (fundZ<-1) long++;        if (fundZ>1) short++;
+  if (short24>2*long24) long++;if (long24>2*short24) short++;
+  if (cvd1h>1000 && (volFlag==='high'||volFlag==='very high')) long+=2;
+  if (cvd1h<-1000&& (volFlag==='high'||volFlag==='very high')) short+=2;
+  if (bull15>bear15) long++;   if (bear15>bull15) short++;
+  if (price>poc4h) long++;     if (price<poc4h) short++;
+  if (stress>=3 && stress<=5){ long++; short++; }
+
+  return { long, short, metrics:{rsi,macd,fundZ,long24,short24,cvd1h,volFlag,bull15,bear15,poc4h,stress} };
 }
 
-(async function main() {
-  console.log('⏳ Fetching', ENDPOINT);
-  let data;
-  try {
-    const res = await fetch(ENDPOINT);
-    console.log('HTTP', res.status, res.statusText);
-    data = await res.json();
-  } catch (err) {
-    console.error('❌ fetch error', err);
-    await send(`❌ Fetch error: ${err.message}`);
-    return;
+async function tg(msg){
+  const url=`https://api.telegram.org/bot${BOT}/sendMessage`;
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+         body:JSON.stringify({chat_id:CHAT,text:msg,parse_mode:'Markdown',disable_web_page_preview:true})});
+  const j=await r.json(); if(!j.ok) throw new Error(j.description);
+}
+
+(async()=>{
+  console.log('⏳ Fetching live.json …');
+  const res=await fetch(LIVE_URL,{cache:'no-store'}); if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  const raw=await res.json();
+  const { long, short } = calcScore(raw);
+  console.log('Scores', { long, short });
+
+  if(TEST){
+    await tg('✅ *TEST ALERT* – bot online');
+    console.log('Test alert sent'); return;
   }
-
-  console.log('✅ Keys:', Object.keys(data).join(', '));
-
-  const m = {
-    rsi1h:    get(data, 'dataA.1h.rsi14'),
-    macd1h:   get(data, 'dataA.1h.macdHist'),
-    price:    get(data, 'dataA.1h.ema50'),
-    fundingZ: get(data, 'dataB.fundingZ'),
-    long24:   get(data, 'dataB.liquidations.long24h'),
-    short24:  get(data, 'dataB.liquidations.short24h'),
-    cvd1h:    get(data, 'dataD.cvd.1h'),
-    volFlag:  get(data, 'dataD.relative.1h', 'unknown'),
-    bull15:   get(data, 'dataD.15m.bullVol'),
-    bear15:   get(data, 'dataD.15m.bearVol'),
-    poc4h:    get(data, 'dataF.vpvr.4h.poc'),
-    stress:   get(data, 'dataE.stressIndex'),
-  };
-
-  console.log('▶️ Metrics:', m);
-
-  const rules = [
-    ['RSI<35 → +1 long',   () => m.rsi1h < 35, +1],
-    ['RSI>65 → +1 short',  () => m.rsi1h > 65, -1],
-    ['MACD>0 → +1 long',   () => m.macd1h > 0,  +1],
-    ['MACD<0 → +1 short',  () => m.macd1h < 0,  -1],
-    ['FundZ<-1 → +1 long', () => m.fundingZ < -1, +1],
-    ['FundZ>1 → +1 short', () => m.fundingZ > 1,  -1],
-    ['S24>2×L24 → +1 L',   () => m.short24 > m.long24 * 2, +1],
-    ['L24>2×S24 → +1 S',   () => m.long24  > m.short24 * 2, -1],
-    ['CVD>1k & highVol → +2 L',  
-                           () => m.cvd1h > 1000 && ['high','very high'].includes(m.volFlag), +2],
-    ['CVD<-1k & highVol → +2 S', 
-                           () => m.cvd1h < -1000 && ['high','very high'].includes(m.volFlag), -2],
-    ['15m bull>bear → +1 L',() => m.bull15 > m.bear15, +1],
-    ['15m bear>bull → +1 S',() => m.bear15 > m.bull15, -1],
-    ['Price>PoC4h → +1 L',  () => m.price > m.poc4h, +1],
-    ['Price<PoC4h → +1 S',  () => m.price < m.poc4h, -1],
-    ['Stress3–5 → +1 both', () => m.stress >= 3 && m.stress <= 5, +1],
-  ];
-
-  let longScore = 0, shortScore = 0;
-  console.log('🧮 Evaluating rules…');
-  for (const [desc, cond, pts] of rules) {
-    if (cond()) {
-      console.log(`   ✓ ${desc} (${pts > 0 ? '+'+pts : pts} pts)`);
-      pts > 0 ? (longScore += pts) : (shortScore -= pts);
-    } else {
-      console.log(`   ✗ ${desc}`);
-    }
+  if(long>=THRESHOLD || short>=THRESHOLD){
+    const dir=long>=THRESHOLD ? 'LONG':'SHORT';
+    const score = long>=THRESHOLD ? long : short;
+    await tg(`🚀 *High-Conviction ${dir}*  (score ${score})`);
+    console.log('Alert sent');
+  }else{
+    console.log('No signal');
   }
-
-  if (m.stress > 7) {
-    console.log(`⚠️ Stress ${m.stress} > 7 → abort`);
-    return;
-  }
-
-  console.log(`➡️ Scores → long: ${longScore}, short: ${shortScore}`);
-  const threshold = 6;
-  const direction = longScore >= threshold
-    ? 'LONG'
-    : shortScore >= threshold
-      ? 'SHORT'
-      : null;
-
-  if (!direction) {
-    console.log('❌ Below threshold; no alert.');
-    return;
-  }
-
-  const score = direction === 'LONG' ? longScore : shortScore;
-  const msg =
-`🚨 *High‑Conviction ${direction} (score ${score}/10)* 🚨
-
-Price:      \`${m.price}\`
-RSI 1h:     \`${m.rsi1h}\`
-MACD Hist 1h: \`${m.macd1h}\`
-Funding Z:  \`${m.fundingZ}\`
-Liq 24h:    long \`${m.long24}\` | short \`${m.short24}\`
-Stress:     \`${m.stress}\``;
-
-  console.log('📤 Sending alert…');
-  await send(msg);
-  console.log('✅ Alert sent.');
-})();
+})().catch(e=>{ console.error(e); process.exit(1); });
