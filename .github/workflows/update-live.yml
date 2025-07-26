@@ -1,19 +1,40 @@
 name: refresh-live-json
+
+# ──────────────────────────────────────────────
+# Runs every 15 minutes and on manual trigger.
+# It executes scripts/generate-live.js, which
+# writes public/live.json and commits the file.
+# Netlify then serves /live.json as a static asset.
+# ──────────────────────────────────────────────
 on:
-  workflow_dispatch:
+  workflow_dispatch:        # manual “Run workflow” button
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/15 * * * *"  # every 15 min
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
+      # 1) checkout repository
       - uses: actions/checkout@v4
+
+      # 2) set up Node 18 and install deps (node-fetch)
       - uses: actions/setup-node@v3
-        with: { node-version: "18" }
+        with:
+          node-version: "18"
+
+      - name: Install dependencies
+        run: npm ci          # uses package-lock.json
+
+      # 3) build public/live.json
       - name: Build live.json
         run: npm run generate-live
+
+      # 4) commit & push the updated file (if it changed)
       - name: Commit & push
-        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -22,5 +43,5 @@ jobs:
             git commit -m "chore: refresh live.json"
             git push
           else
-            echo "no changes"
+            echo "ℹ️  live.json unchanged – nothing to commit"
           fi
