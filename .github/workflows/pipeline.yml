@@ -9,42 +9,38 @@ jobs:
   update-live-json:
     runs-on: ubuntu-latest
     steps:
+      # 1. Checkout with write access (GITHUB_TOKEN)
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true   # <-- allows `git push` with the built‐in token
 
+      # 2. Setup Node.js & install deps
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-
       - name: Install dependencies
         run: npm install
 
+      # 3. Build live.json under public/
       - name: Build public/live.json
         run: |
           mkdir -p public
           node netlify/edge-functions/data.js > public/live.json
 
+      # 4. Commit & push ONLY that file
       - name: Commit & push public/live.json
-        env:
-          GIT_AUTHOR_NAME:  github-actions[bot]
-          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
-          GIT_COMMITTER_NAME:  github-actions[bot]
-          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
         run: |
-          cd public
-          git init
-          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
-          git fetch origin main
-          git checkout -B main
-          git add live.json
-          if ! git diff --cached --quiet; then
-            git commit -m "ci: refresh live.json"
-            git push origin main HEAD:main
-          else
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add public/live.json
+          if git diff --cached --quiet; then
             echo "No changes to commit."
+          else
+            git commit -m "ci: refresh live.json"
+            git push
           fi
 
   alert-telegram:
