@@ -13,9 +13,9 @@
   "dataF": null,
   "dataG": {
     "totalMcapT": 3.96,
-    "mcap24hPct": -2.91,
-    "btcDominance": 59.31,
-    "ethDominance": 11.44
+    "mcap24hPct": -3.06,
+    "btcDominance": 59.28,
+    "ethDominance": 11.45
   },
   "dataH": {
     "fearGreed": "72 · Greed"
@@ -34,5 +34,5 @@
     "E: Cannot read properties of undefined (reading '15m')",
     "F: HTTP 451"
   ],
-  "timestamp": 1753568278102
+  "timestamp": 1753568354488
 }
