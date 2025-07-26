@@ -1,4 +1,3 @@
-# .github/workflows/alert.yml
 name: High-Conviction Alert
 
 on:
@@ -11,20 +10,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: "18"
-
-      - name: Install dependencies
-        run: npm install
 
       - name: Run standalone alert
         env:
           TEST_ALERT: "0"
         run: |
-          echo "▶ node .github/scripts/alert-live.js"
+          npm install  # no deps, but ensures package-lock exists
           node .github/scripts/alert-live.js
