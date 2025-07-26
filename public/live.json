@@ -1,5 +1,5 @@
 {
-  "timestamp": 1753566523990,
+  "timestamp": 1753567596616,
   "dataA": {},
   "dataB": {
     "fundingZ": null,
@@ -17,17 +17,17 @@
   "errors": [
     "A[15m]: kl.map is not a function",
     "A[1h]: kl.map is not a function",
-    "A[4h]: kl.map is not a function",
-    "A[1d]: kl.map is not a function",
-    "B: fr.slice is not a function",
+    "A[4h]: HTTP 500 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=4h&limit=250",
+    "A[1d]: HTTP 500 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=250",
+    "B: HTTP 500 at https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=1000",
     "C[15m]: kl.map is not a function",
     "C[1h]: kl.map is not a function",
     "C[4h]: kl.map is not a function",
     "C[1d]: HTTP 429 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=21",
-    "D: kl is not iterable",
+    "D: HTTP 429 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&startTime=1753566699949&endTime=1753567599949&limit=1500",
     "E: Cannot read properties of undefined (reading '15m')",
     "F: HTTP 429 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=4h&limit=96",
-    "G: Cannot read properties of undefined (reading 'total_market_cap')",
+    "G: HTTP 429 at https://api.coingecko.com/api/v3/global",
     "H: HTTP 429 at https://api.alternative.me/fng/?limit=1"
   ]
 }
