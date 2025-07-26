@@ -2,7 +2,7 @@ name: Telegram Alerts
 
 on:
   schedule:
-    - cron:  "*/15 * * * *"     # every 15 min
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -13,13 +13,11 @@ jobs:
 
       - name: Setup Node
         uses: actions/setup-node@v3
-        with: { node-version: '18' }
+        with:
+          node-version: '18'
 
-      - name: Install deps
+      - name: Install dependencies
         run: npm ci
 
-      - name: Run alert script
-        env:
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          TG_CHAT_ID:  ${{ secrets.TG_CHAT_ID }}
+      - name: Fire high‑conviction alert
         run: npm run alert
