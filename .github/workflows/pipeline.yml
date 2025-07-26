@@ -5,32 +5,33 @@ on:
     - cron: '*/15 * * * *'   # every 15 min UTC
   workflow_dispatch:
 
+# Default permissions are read-only; we override for the push step.
+permissions:
+  contents: write   # grants write access to the repo for all jobs
+
 jobs:
   update-live-json:
     runs-on: ubuntu-latest
     steps:
-      # 1. Checkout with write access (GITHUB_TOKEN)
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true   # <-- allows `git push` with the built‐in token
+          persist-credentials: true   # make GITHUB_TOKEN available to git
 
-      # 2. Setup Node.js & install deps
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
+
       - name: Install dependencies
         run: npm install
 
-      # 3. Build live.json under public/
       - name: Build public/live.json
         run: |
           mkdir -p public
           node netlify/edge-functions/data.js > public/live.json
 
-      # 4. Commit & push ONLY that file
       - name: Commit & push public/live.json
         run: |
           git config user.name github-actions[bot]
@@ -47,7 +48,7 @@ jobs:
     needs: update-live-json
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: read    # only needs read access here
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
