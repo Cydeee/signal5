@@ -16,8 +16,12 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show generate-live.js (for verification)
+        run: |
+          echo '--- scripts/generate-live.js head ---'
+          head -n50 scripts/generate-live.js
+          echo '--- end ---'
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -29,9 +33,9 @@ jobs:
           echo "▶ npm install"
           npm install
 
-      - name: Generate live.json via Worker proxy
+      - name: Generate live.json from Edge
         env:
-          WORKER_URL: "https://my-binance-proxy.workers.dev/?url="
+          EDGE_URL: "https://btcsignal.netlify.app/data.json"
         run: |
           echo "▶ npm run generate-live"
           npm run generate-live
