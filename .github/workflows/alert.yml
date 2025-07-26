@@ -1,15 +1,25 @@
+# .github/workflows/alert.yml
 name: telegram-alert
+
 on:
   workflow_dispatch:
   schedule:
     - cron: "*/15 * * * *"
+
 jobs:
   alert:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
-        with: { node-version: "18" }
-      - run: npm run alert
+        with:
+          node-version: "18"
+
+      - name: Generate fresh live.json
+        run: npm ci && npm run generate-live
+
+      - name: Send Telegram alert
+        run: npm run alert
         env:
-          TEST_ALERT: "0"   # set to "1" for a dry-run ping
+          TEST_ALERT: "0"
