@@ -1,121 +1,71 @@
 import fetch from 'node-fetch';
 
-const ENDPOINT = 'https://btcsignal.netlify.app/data';
+const ENDPOINT = 'https://btcsignal.netlify.app/.netlify/edge-functions/data';
 const TOKEN    = '8417682763:AAGZ1Darr0BgISB9JAG3RzHCQi-uqMylcOw';
 const CHAT_ID  = '6038110897';
 
-// helper to get nested props
-const get = (o, p, d=null) =>
-  p.split('.').reduce((x,k)=>x && x[k]!=null ? x[k] : d, o);
+/* ------------- helpers (unchanged) ------------- */
+const get = (o,p,d=null)=>p.split('.').reduce((x,k)=>x&&x[k]!=null?x[k]:d,o);
+async function send(t){await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`,
+  {method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({chat_id:CHAT_ID,text:t,parse_mode:'Markdown'})});}
 
-// send Telegram
-async function send(msg) {
-  await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ chat_id:CHAT_ID, text:msg, parse_mode:'Markdown' })
-  });
-}
+/* ------------- main ------------- */
+(async()=>{
+  console.log(`⏳ Fetching ${ENDPOINT}`);
+  let payload; try{
+    const res=await fetch(ENDPOINT); console.log(`HTTP ${res.status} ${res.statusText}`);
+    try{payload=await res.clone().json();}
+    catch{const html=await res.text();const m=html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+      if(!m)throw new Error('No <pre> block');payload=JSON.parse(m[1]);}
+  }catch(e){console.error('❌',e);await send(`❌ Fetch error: ${e.message}`);return;}
 
-(async function main(){
-  console.log(`⏳ Fetching live dashboard from ${ENDPOINT} …`);
-  let payload;
-  try {
-    const res = await fetch(ENDPOINT);
-    console.log(`HTTP ${res.status} ${res.statusText}`);
-    try {
-      // first try raw JSON
-      payload = await res.clone().json();
-    } catch {
-      // fallback: extract JSON from your <pre> wrapper
-      const html = await res.text();
-      console.log('ℹ️ Received HTML; extracting JSON from <pre>…');
-      const m = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
-      if (!m) throw new Error('No <pre> block found in HTML');
-      payload = JSON.parse(m[1]);
-    }
-  } catch (err) {
-    console.error('❌ Error fetching/parsing payload:', err);
-    await send(`❌ Fetch/parsing error: ${err.message}`);
-    return;
-  }
+  console.log('✅ keys:',Object.keys(payload).join(', '));
 
-  console.log('✅ Top-level keys:', Object.keys(payload).join(', '));
-
-  // extract metrics
-  const m = {
-    rsi1h:    get(payload, 'dataA.1h.rsi14'),
-    macd1h:   get(payload, 'dataA.1h.macdHist'),
-    price:    get(payload, 'dataA.1h.ema50'),
-    fundingZ: get(payload, 'dataB.fundingZ'),
-    long24:   get(payload, 'dataB.liquidations.long24h'),
-    short24:  get(payload, 'dataB.liquidations.short24h'),
-    cvd1h:    get(payload, 'dataD.cvd.1h'),
-    volFlag:  get(payload, 'dataD.relative.1h','unknown'),
-    bull15:   get(payload, 'dataD.15m.bullVol'),
-    bear15:   get(payload, 'dataD.15m.bearVol'),
-    poc4h:    get(payload, 'dataF.vpvr.4h.poc'),
-    stress:   get(payload, 'dataE.stressIndex'),
+  const m={
+    rsi1h:get(payload,'dataA.1h.rsi14'),
+    macd1h:get(payload,'dataA.1h.macdHist'),
+    price:get(payload,'dataA.1h.ema50'),
+    fundingZ:get(payload,'dataB.fundingZ'),
+    long24:get(payload,'dataB.liquidations.long24h'),
+    short24:get(payload,'dataB.liquidations.short24h'),
+    cvd1h:get(payload,'dataD.cvd.1h'),
+    volFlag:get(payload,'dataD.relative.1h','unknown'),
+    bull15:get(payload,'dataD.15m.bullVol'),
+    bear15:get(payload,'dataD.15m.bearVol'),
+    poc4h:get(payload,'dataF.vpvr.4h.poc'),
+    stress:get(payload,'dataE.stressIndex')
   };
 
-  console.log('▶️ Raw metrics:');
-  Object.entries(m).forEach(([k,v])=> console.log(`  ${k.padEnd(8)}: ${v}`));
+  console.log('▶️ metrics:',m);
 
-  // scoring rules
-  const rules = [
-    ['RSI<35 → +1 long',        ()=>m.rsi1h<35,     +1],
-    ['RSI>65 → +1 short',       ()=>m.rsi1h>65,     -1],
-    ['MACD>0 → +1 long',        ()=>m.macd1h>0,     +1],
-    ['MACD<0 → +1 short',       ()=>m.macd1h<0,     -1],
-    ['FundZ<-1 → +1 long',      ()=>m.fundingZ<-1,  +1],
-    ['FundZ>1 → +1 short',      ()=>m.fundingZ>1,   -1],
-    ['Short24>2×Long24 → +1 L', ()=>m.short24>m.long24*2, +1],
-    ['Long24>2×Short24 → +1 S', ()=>m.long24>m.short24*2, -1],
-    ['CVD>1000&volHigh→+2L',    ()=>m.cvd1h>1000 && ['high','very high'].includes(m.volFlag), +2],
-    ['CVD<-1000&volHigh→+2S',   ()=>m.cvd1h<-1000&& ['high','very high'].includes(m.volFlag), -2],
-    ['15m bull>bear → +1 L',    ()=>m.bull15>m.bear15, +1],
-    ['15m bear>bull → +1 S',    ()=>m.bear15>m.bull15, -1],
-    ['Price>PoC4h → +1 long',   ()=>m.price>m.poc4h, +1],
-    ['Price<PoC4h → +1 short',  ()=>m.price<m.poc4h, -1],
-    ['Stress 3–5 → +1 both',    ()=>m.stress>=3&&m.stress<=5, +1],
+  const rules=[
+    ['RSI<35',()=>m.rsi1h<35,+1],['RSI>65',()=>m.rsi1h>65,-1],
+    ['MACD>0',()=>m.macd1h>0,+1],['MACD<0',()=>m.macd1h<0,-1],
+    ['Fund<-1',()=>m.fundingZ<-1,+1],['Fund>1',()=>m.fundingZ>1,-1],
+    ['Short>2×Long',()=>m.short24>m.long24*2,+1],
+    ['Long>2×Short',()=>m.long24>m.short24*2,-1],
+    ['CVD>1k&highVol',()=>m.cvd1h>1000&&['high','very high'].includes(m.volFlag),+2],
+    ['CVD<-1k&highVol',()=>m.cvd1h<-1000&&['high','very high'].includes(m.volFlag),-2],
+    ['bull>bear',()=>m.bull15>m.bear15,+1],
+    ['bear>bull',()=>m.bear15>m.bull15,-1],
+    ['Price>PoC',()=>m.price>m.poc4h,+1],
+    ['Price<PoC',()=>m.price<m.poc4h,-1],
+    ['Stress3‑5',()=>m.stress>=3&&m.stress<=5,+1]
   ];
 
-  let longScore=0, shortScore=0;
-  console.log('🧮 Evaluating rules:');
-  for (let [desc, cond, pts] of rules) {
-    if (cond()) {
-      console.log(`   ✓ ${desc} (${pts>0? '+'+pts:pts}pts)`);
-      pts>0? longScore+=pts : shortScore-=pts;
-    } else {
-      console.log(`   ✗ ${desc}`);
-    }
-  }
+  let long=0,short=0;
+  rules.forEach(([d,c,p])=>c()&&(p>0?long+=p:short-=p));
+  if(m.stress>7){console.log('⚠️ Stress gate');return;}
 
-  // stress gate
-  if (m.stress>7) {
-    console.log(`⚠️ Stress ${m.stress}>7 → abort`);
-    return;
-  }
+  console.log(`➡️ scores long:${long} short:${short}`);
+  const TH=6,dir=long>=TH?'LONG':short>=TH?'SHORT':null;
+  if(!dir){console.log('No alert');return;}
 
-  console.log(`➡️ Scores → long:${longScore}, short:${shortScore}`);
-  const TH = 6;
-  let dir = longScore>=TH?'LONG': shortScore>=TH?'SHORT': null;
-  if (!dir) {
-    console.log(`❌ Below threshold ${TH}; no alert.`);
-    return;
-  }
-
-  const score = dir==='LONG'? longScore : shortScore;
-  const msg =
-`🚨 *High‑Conviction ${dir} (score ${score}/10)* 🚨
-
-Price:      \`${m.price}\`
-RSI 1h:     \`${m.rsi1h}\`
-CVD 1h:     \`${m.cvd1h}\`
-Funding Z:  \`${m.fundingZ}\`
-Liq 24h:    long \`${m.long24}\` / short \`${m.short24}\`
-Stress:     \`${m.stress}\``;
-
-  console.log('📤 Sending alert:', msg.replace(/\n/g,' | '));
-  await send(msg);
-  console.log('✅ Alert sent.');
+  const msg=
+`🚨 *High‑Conviction ${dir} (${dir==='LONG'?long:short}/10)* 🚨
+Price \`${m.price}\`  RSI1h \`${m.rsi1h}\`  CVD1h \`${m.cvd1h}\`
+Funding \`${m.fundingZ}\`  Liq24 L/S \`${m.long24}/${m.short24}\`
+Stress \`${m.stress}\``;
+  await send(msg);console.log('✅ Alert sent');
 })();
