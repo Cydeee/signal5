@@ -38,7 +38,7 @@ async function buildDashboardData () {
     const sd=Math.sqrt(rates.reduce((s,x)=>s+(x-mean)**2,0)/rates.length);
     const fundingZ=sd?((rates.at(-1)-mean)/sd).toFixed(2):'0.00';
     const oiNow=await safeJson(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${SYMBOL}`);
-    const oiHist=await safeJson(`https://api.binance.com/api/v3/futures/data/openInterestHist?symbol=${SYMBOL}&period=1h&limit=24`);
+    const oiHist = await safeJson(`https://fapi.binance.com/futures/data/openInterestHist?symbol=${SYMBOL}&period=1h&limit=24`);
     const oiDelta24h=((+oiNow.openInterest-+oiHist[0].sumOpenInterest)/+oiHist[0].sumOpenInterest*100).toFixed(1);
     out.dataB={fundingZ,oiDelta24h};
   }catch(e){ out.dataB={fundingZ:null,oiDelta24h:null}; out.errors.push('B: '+e.message); }
