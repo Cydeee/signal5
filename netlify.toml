@@ -1,7 +1,6 @@
 [build]
   publish = "public"
 
-# Edge function routes (unchanged, if you still need them)
 [[edge_functions]]
   path     = "/data"
   function = "data"
@@ -17,14 +16,12 @@
   function = "data-page"
   cache    = "manual"
 
-# Prevent SPA fallback from overriding /data.json
 [[redirects]]
   from   = "/data.json"
   to     = "/data.json"
   status = 200
   force  = true
 
-# SPA fallback
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
