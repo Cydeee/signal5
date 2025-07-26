@@ -1,41 +1,75 @@
-name: scrape‑and‑alert
+name: scrape-and-alert
+
+# Run on schedule and manual trigger
 on:
   schedule:
-    - cron: '*/15 * * * *'   # every 15 min
-  workflow_dispatch:         # manual trigger
+    - cron: '*/15 * * * *'   # every 15 min UTC
+  workflow_dispatch:         # manual “Run workflow” button
+
 jobs:
+  # 1. Scrape & commit live.json
   update-live-json:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-      - uses: actions/setup-node@v3
-        with: { node-version: '18' }
-      - run: npm ci
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Build live.json
-        run: node netlify/edge-functions/data.js > live.json
-      - name: Commit live.json
+        run: |
+          # If your Netlify publish dir is `public`, ensure it exists:
+          mkdir -p public
+          # Generate the JSON snapshot:
+          node netlify/edge-functions/data.js > public/live.json
+
+      - name: Commit & push live.json
         env:
           GIT_AUTHOR_NAME:  github-actions[bot]
           GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME:  github-actions[bot]
           GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
         run: |
+          cd public
+          git init
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git fetch origin main
+          git checkout -b main
           git add live.json
           if ! git diff --cached --quiet; then
             git commit -m "ci: refresh live.json"
-            git push
+            git push origin main HEAD:main
           else
             echo "No changes to commit."
           fi
 
+  # 2. Run alert script against fresh live.json
   alert-telegram:
-    needs: update-live-json          # wait until live.json is committed
+    needs: update-live-json
     runs-on: ubuntu-latest
-    permissions: { contents: read }  # read‑only checkout
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 1 }
-      - run: npm ci
-      - name: Run alert
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run alert script
         run: npm run alert
