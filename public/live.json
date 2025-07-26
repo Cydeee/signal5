@@ -1,5 +1,5 @@
 {
-  "timestamp": 1753561904529,
+  "timestamp": 1753562320015,
   "dataA": {},
   "dataB": null,
   "dataC": {},
@@ -12,6 +12,7 @@
     "A[15m]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m&limit=250",
     "A[1h]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=250",
     "A[4h]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=4h&limit=250",
-    "A[1d]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=250"
+    "A[1d]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=250",
+    "B: HTTP 451 at https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=1000"
   ]
 }
