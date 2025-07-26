@@ -1,186 +1,38 @@
 {
-  "timestamp": 1753557175039,
+  "timestamp": 1753557858295,
   "dataA": {},
   "dataB": {
-    "fundingZ": "0.16",
-    "oiDelta24h": "-3.3",
-    "liquidations": {
-      "long1h": 27190,
-      "short1h": 52440,
-      "long4h": 463930,
-      "short4h": 146940,
-      "long24h": 1060000,
-      "short24h": 18450000
-    }
+    "fundingZ": null,
+    "oiDelta24h": null,
+    "liquidations": null
   },
-  "dataC": {
-    "15m": {
-      "roc10": 0,
-      "roc20": -0.07
-    },
-    "1h": {
-      "roc10": 0.41,
-      "roc20": 0.38
-    },
-    "4h": {
-      "roc10": 2.29,
-      "roc20": -0.41
-    },
-    "1d": {
-      "roc10": -0.48,
-      "roc20": 8.11
-    }
-  },
+  "dataC": {},
   "dataD": {
-    "cvd": {
-      "15m": -7.59,
-      "1h": -10.98,
-      "4h": -24.18,
-      "24h": 16.46
-    },
-    "15m": {
-      "bullVol": 10.12,
-      "bearVol": 51.41,
-      "totalVol": 61.53
-    },
-    "1h": {
-      "bullVol": 101,
-      "bearVol": 128.87,
-      "totalVol": 229.86
-    },
-    "4h": {
-      "bullVol": 462.55,
-      "bearVol": 625.17,
-      "totalVol": 1087.72
-    },
-    "24h": {
-      "bullVol": 3624.36,
-      "bearVol": 2612.43,
-      "totalVol": 6236.79
-    },
-    "relative": {
-      "15m": "normal",
-      "1h": "normal",
-      "4h": "normal"
-    }
+    "cvd": {}
   },
-  "dataE": {
-    "stressIndex": 2.16,
-    "highRisk": false,
-    "components": {
-      "biasScore": 0.16,
-      "levScore": 0,
-      "volScore": 0,
-      "liqScore": 2
-    },
-    "source": "synthetic"
-  },
-  "dataF": {
-    "vpvr": {
-      "4h": {
-        "poc": 117300,
-        "buckets": {
-          "115400": 19273.805474,
-          "115800": 6361.79335,
-          "116100": 7216.21136,
-          "116400": 18673.285051,
-          "116700": 5395.39361,
-          "116900": 17753.42572,
-          "117100": 3707.46413,
-          "117200": 1694.78119,
-          "117300": 19756.913090000002,
-          "117400": 1968.02333,
-          "117500": 11727.001777000001,
-          "117600": 10329.93577,
-          "117700": 4279.84175,
-          "117800": 6425.32912,
-          "117900": 6662.83453,
-          "118000": 16111.60834,
-          "118100": 9381.5703,
-          "118200": 9886.69229,
-          "118300": 11794.637159999998,
-          "118400": 8827.37079,
-          "118500": 11087.47408,
-          "118600": 3376.79135,
-          "118700": 13025.000727,
-          "118800": 4139.29216,
-          "118900": 5576.67502,
-          "119000": 11604.2581,
-          "119100": 7285.7261100000005,
-          "119200": 2877.33424,
-          "119300": 3067.62854,
-          "119500": 3762.26221,
-          "119800": 5579.34399,
-          "119900": 5541.967979999999,
-          "120000": 2672.86935,
-          "120400": 5418.532886,
-          "120500": 6047.71252,
-          "121900": 3279.33527,
-          "122200": 6981.800221
-        }
-      },
-      "1d": {
-        "poc": 116900,
-        "buckets": {
-          "106200": 10505.62437,
-          "107000": 12232.44042,
-          "107200": 3282.17352,
-          "107600": 9754.12491,
-          "107900": 17691.89592,
-          "108000": 6831.7364,
-          "108100": 3736.9757,
-          "108300": 11793.86615,
-          "108500": 18621.39681,
-          "108900": 6447.607,
-          "109500": 13047.08225,
-          "110500": 17282.2865,
-          "114500": 24883.450665,
-          "116900": 38406.34873,
-          "117200": 25873.521148,
-          "117500": 21409.533259999997,
-          "117800": 37842.77107,
-          "117900": 23743.134339999997,
-          "118300": 15806.89043,
-          "118500": 19924.66266,
-          "118600": 26590.701457000003,
-          "118700": 14558.75083,
-          "118800": 20959.12973,
-          "119200": 15728.57651,
-          "120700": 27269.348877
-        }
-      },
-      "1w": {
-        "poc": 107700,
-        "buckets": {
-          "100800": 145910.00118,
-          "102700": 110755.93156,
-          "104300": 95301.97979,
-          "104600": 135512.85987,
-          "105500": 91938.97808,
-          "106300": 110085.74896,
-          "106500": 116099.819,
-          "107700": 197357.632795,
-          "108300": 72977.1763,
-          "115300": 104658.05244,
-          "117700": 112662.76124,
-          "118700": 131579.689337
-        }
-      }
-    }
-  },
+  "dataE": null,
+  "dataF": null,
   "dataG": {
     "totalMcapT": 3.96,
-    "mcap24hPct": -2.04,
-    "btcDominance": 59.38,
-    "ethDominance": 11.41
+    "mcap24hPct": -2.26,
+    "btcDominance": 59.36,
+    "ethDominance": 11.42
   },
   "dataH": {
     "fearGreed": "72 · Greed"
   },
   "errors": [
-    "A[15m]: Assignment to constant variable.",
-    "A[1h]: Assignment to constant variable.",
-    "A[4h]: Assignment to constant variable.",
-    "A[1d]: Assignment to constant variable."
+    "A[15m]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m&limit=250",
+    "A[1h]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=250",
+    "A[4h]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=4h&limit=250",
+    "A[1d]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=250",
+    "B: HTTP 451 at https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=1000",
+    "C[15m]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m&limit=21",
+    "C[1h]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=21",
+    "C[4h]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=4h&limit=21",
+    "C[1d]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=21",
+    "D: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&startTime=1753556957888&endTime=1753557857888&limit=1500",
+    "E: Cannot read properties of undefined (reading '15m')",
+    "F: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=4h&limit=96"
   ]
 }
