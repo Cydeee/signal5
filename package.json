@@ -5,5 +5,7 @@
   "scripts": {
     "alert": "node .github/scripts/alert-live.js"
   },
-  "dependencies": {}
+  "dependencies": {
+    "node-fetch": "^3.4.1"
+  }
 }
