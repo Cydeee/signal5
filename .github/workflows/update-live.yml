@@ -23,8 +23,11 @@ jobs:
         run: |
           echo "▶ mkdir -p public"
           mkdir -p public
-          echo "▶ curl data.json → public/live.json"
-          curl -sSL https://btcsignal.netlify.app/data.json -o public/live.json
+          echo "▶ curl latest data.json → public/live.json"
+          curl -sSL \
+            -H "Cache-Control: no-cache" \
+            "https://btcsignal.netlify.app/data.json" \
+            -o public/live.json
 
       - name: Debug generated JSON
         run: |
