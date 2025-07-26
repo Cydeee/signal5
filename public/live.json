@@ -1,0 +1,30 @@
+
+> high-conviction-alerts@1.0.0 generate
+> node scripts/generate.js
+
+{
+  "dataA": {},
+  "dataB": {
+    "fundingZ": null,
+    "oiDelta24h": null
+  },
+  "dataC": {},
+  "dataD": {},
+  "dataE": null,
+  "dataF": null,
+  "dataG": null,
+  "dataH": null,
+  "errors": [
+    "A[15m]: HTTP 451",
+    "A[1h]: HTTP 451",
+    "A[4h]: HTTP 451",
+    "A[1d]: HTTP 451",
+    "B: HTTP 451",
+    "C[15m]: HTTP 451",
+    "C[1h]: HTTP 451",
+    "C[4h]: HTTP 451",
+    "C[1d]: HTTP 451",
+    "D: HTTP 451",
+    "E-synth: Cannot read properties of undefined (reading '15m')"
+  ]
+}
