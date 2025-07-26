@@ -1,47 +1,56 @@
+# .github/workflows/update-live.yml
 name: refresh-live-json
 
 permissions:
   contents: write
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: "*/15 * * * *"
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: "18"
 
-      - name: Install & generate live.json
-        env:
-          EDGE_URL: "https://btcsignal.netlify.app/data.json"
+      - name: Install dependencies
         run: |
           echo "▶ npm install"
           npm install
+
+      - name: Generate live.json via Worker proxy
+        env:
+          WORKER_URL: "https://my-binance-proxy.workers.dev/?url="
+        run: |
           echo "▶ npm run generate-live"
           npm run generate-live
 
-      - name: Debug live.json
+      - name: Debug generated JSON
         run: |
-          echo "🔍 public folder:"
+          echo "🔍 public folder contents:"
           ls -al public
-          echo "⏱ live.json preview:"
-          head -n10 public/live.json
+          echo "⏱ public/live.json head:"
+          head -n20 public/live.json
           echo "…"
-          tail -n10 public/live.json
+          echo "⏱ public/live.json tail:"
+          tail -n20 public/live.json
 
-      - name: Commit & push
+      - name: Commit & push updated live.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add public/live.json
           if ! git diff --cached --quiet; then
