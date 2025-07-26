@@ -2,36 +2,38 @@
 // .github/scripts/alert.js
 import fetch from "node-fetch";
 
-const BOT  = process.env.BOT_TOKEN;
-const CHAT = process.env.CHAT_ID;
+const BOT  = "8417682763:AAGZ1Darr0BgISB9JAG3RzHCQi-uqMylcOw";   // ← your bot token
+const CHAT = "6038110897";                                       // ← your chat ID
 const LIVE = "https://btcsignal.netlify.app/live.json";
+
 const THRESHOLD = 6;
 
-if (!BOT || !CHAT) {
-  console.error("❌ BOT_TOKEN or CHAT_ID missing");
-  process.exit(1);
-}
-
+/* ───── Telegram helper ───── */
 async function tg(msg) {
   await fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: CHAT, text: msg, parse_mode: "Markdown", disable_web_page_preview: true })
+    body: JSON.stringify({
+      chat_id: CHAT,
+      text: msg,
+      parse_mode: "Markdown",
+      disable_web_page_preview: true
+    })
   });
 }
 
-/* ---------- scoring identical to your existing logic ---------- */
+/* ───── scoring (same logic you had) ───── */
 function score(raw) {
-  const A = raw.dataA?.["1h"] || {};
-  const B = raw.dataB || {};
-  const D = raw.dataD || {};
-  const F = raw.dataF || {};
-  const E = raw.dataE || {};
+  const A = raw.dataA?.["1h"]  || {};
+  const B = raw.dataB          || {};
+  const D = raw.dataD          || {};
+  const F = raw.dataF          || {};
+  const E = raw.dataE          || {};
 
   const rsi   = +A.rsi14 || 0;
   const macd  = +A.macdHist || 0;
   const fund  = +B.fundingZ || 0;
-  const l24   = +B.liquidations?.long24h || 0;
+  const l24   = +B.liquidations?.long24h  || 0;
   const s24   = +B.liquidations?.short24h || 0;
   const cvd   = +D.cvd?.["1h"] || 0;
   const vf    = D.relative?.["15m"] || "unknown";
@@ -55,11 +57,12 @@ function score(raw) {
   return { long: L, short: S };
 }
 
-/* ---------- main ---------- */
+/* ───── main ───── */
 (async () => {
   console.log("🔍 Fetching live: " + LIVE);
-  const r = await fetch(LIVE, { cache: "no-store" });
+  const r   = await fetch(LIVE, { cache: "no-store" });
   const raw = await r.json();
+
   const { long, short } = score(raw);
   console.log("▶ Scores:", { long, short });
 
