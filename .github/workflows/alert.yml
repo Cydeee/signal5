@@ -1,0 +1,25 @@
+name: Telegram Alerts
+
+on:
+  schedule:
+    - cron:  "*/15 * * * *"     # every 15 min
+  workflow_dispatch:
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with: { node-version: '18' }
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run alert script
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID:  ${{ secrets.TG_CHAT_ID }}
+        run: npm run alert
