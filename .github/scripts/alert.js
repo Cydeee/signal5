@@ -1,12 +1,8 @@
 import fetch from 'node-fetch';
 
-const ENDPOINT = 'https://btcsignal.netlify.app/data';  // now points to dynamic Edge Function
+const ENDPOINT = 'https://btcsignal.netlify.app/data';  // still hitting /data
 const TOKEN    = '8417682763:AAGZ1Darr0BgISB9JAG3RzHCQi-uqMylcOw';
 const CHAT_ID  = '6038110897';
-
-// safe getter with default
-const get = (obj, path, def = null) =>
-  path.split('.').reduce((o, k) => (o && o[k] != null ? o[k] : def), obj);
 
 // send to Telegram
 async function send(msg) {
@@ -17,23 +13,37 @@ async function send(msg) {
   });
 }
 
+// safe getter
+const get = (obj, path, def = null) =>
+  path.split('.').reduce((o,k) => (o && o[k] != null ? o[k] : def), obj);
+
 (async function main() {
-  console.log("⏳ Fetching dashboard JSON…");
+  console.log("⏳ Fetching", ENDPOINT);
   let raw;
+  let text;
   try {
     const res = await fetch(ENDPOINT);
     console.log(`HTTP ${res.status} ${res.statusText}`);
-    raw = await res.json();
+    // try JSON
+    try {
+      raw = await res.clone().json();
+    } catch {
+      // fallback: HTML wrapper → extract JSON inside <pre id="dashboard-data">
+      text = await res.text();
+      console.log("ℹ️ Received HTML; extracting <pre> payload…");
+      const m = text.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+      if (!m) throw new Error("No <pre> block found in HTML");
+      raw = JSON.parse(m[1]);
+    }
   } catch (err) {
-    console.error("❌ Fetch error:", err);
-    await send(`❌ Failed to fetch data: ${err.message}`);
+    console.error("❌ Fetch/parse error:", err);
+    await send(`❌ Could not load data: ${err.message}`);
     return;
   }
 
-  // show top-level keys
-  console.log("✅ Top-level keys:", Object.keys(raw).join(', '));
+  console.log("✅ Top‑level keys:", Object.keys(raw).join(', '));
 
-  // extract metrics from dataA…dataH
+  // extract metrics
   const metrics = {
     rsi1h:    get(raw, 'dataA.1h.rsi14'),
     macd1h:   get(raw, 'dataA.1h.macdHist'),
@@ -73,7 +83,7 @@ async function send(msg) {
     ["Stress 3–5 → +1 both",         () => metrics.stress >= 3 && metrics.stress <= 5, +1],
   ];
 
-  // evaluate scores
+  // evaluate
   let longScore = 0, shortScore = 0;
   console.log("🧮 Evaluating rules:");
   for (const [desc, cond, pts] of rules) {
@@ -114,7 +124,7 @@ CVD 1h:     \`${metrics.cvd1h}\`
 Funding Z:  \`${metrics.fundingZ}\`
 Liq 24h:    long \`${metrics.long24}\` | short \`${metrics.short24}\``;
 
-  console.log("📤 Sending:", msg.replace(/\n/g, ' | '));
+  console.log("📤 Sending:", msg.replace(/\n/g,' | '));
   await send(msg);
   console.log(`✅ Alert sent (${direction})`);
 })();
