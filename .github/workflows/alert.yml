@@ -17,7 +17,14 @@ jobs:
           node-version: "18"
 
       - name: Generate fresh live.json
-        run: npm ci && npm run generate-live
+        # Turn on verbose npm logging so if something breaks you get more detail in the step log.
+        env:
+          NPM_CONFIG_LOGLEVEL: verbose
+        run: |
+          # install deps (no package-lock.json needed)
+          npm install
+          # regenerate public/live.json
+          npm run generate-live
 
       - name: Send Telegram alert
         run: npm run alert
