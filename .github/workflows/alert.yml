@@ -24,18 +24,23 @@ jobs:
           node-version: "18"
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          echo "▶ npm install"
+          npm install
 
       - name: Debug local live.json
         run: |
           echo "🔍 Checking public/live.json:"
           ls -l public/live.json || { echo "❌ public/live.json not found"; exit 1; }
-          echo "⏱ Timestamp line:"
-          head -n3 public/live.json
-          echo "…snip…"
-          tail -n3 public/live.json
+          echo "⏱ first 5 lines:"
+          head -n5 public/live.json
+          echo "…"
+          echo "⏱ last 5 lines:"
+          tail -n5 public/live.json
 
       - name: Run Telegram alert
-        run: npm run alert
+        run: |
+          echo "▶ npm run alert"
+          npm run alert
         env:
           TEST_ALERT: "0"
