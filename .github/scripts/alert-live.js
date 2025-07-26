@@ -1,5 +1,3 @@
-// .github/scripts/alert-live.js
-#!/usr/bin/env node
 /**
  * Standalone High‑Conviction Alert
  * Re‑implements A→H logic in Node.js with desktop UA,
@@ -133,7 +131,7 @@ async function buildDashboardData() {
       kl.forEach(k=> +k[4]>=+k[1]? bull+=+k[5]: bear+=+k[5]);
       const trades=await safeJson(`https://api.binance.com/api/v3/aggTrades?symbol=${SYMBOL}&startTime=${start}&endTime=${end}&limit=1000`);
       let cvd=0; trades.forEach(t=> cvd += t.m?-(+t.q):+t.q);
-      out.dataD[lbl] = { bullVol:+bull.toFixed(2), bearVol:+bear.toFixed(2), totalVol:+(bull+bear).toFixed(2) };
+      out.dataD[lbl]={ bullVol:+bull.toFixed(2), bearVol:+bear.toFixed(2), totalVol:+(bull+bear).toFixed(2) };
       out.dataD.cvd[lbl]=+cvd.toFixed(2);
     }
     const tot24=out.dataD["24h"].totalVol;
@@ -141,7 +139,7 @@ async function buildDashboardData() {
     out.dataD.relative={};
     for (const lbl of ["15m","1h","4h"]) {
       const r=out.dataD[lbl].totalVol/Math.max(base[lbl],1);
-      out.dataD.relative[lbl]= r>2?"very high": r>1.2?"high": r<0.5?"low":"normal";
+      out.dataD.relative[lbl]=r>2?"very high":r>1.2?"high":r<0.5?"low":"normal";
     }
   } catch(e) {
     out.errors.push(`D: ${e.message}`);
@@ -149,14 +147,11 @@ async function buildDashboardData() {
 
   // E: Synthetic Stress
   try {
-    const b = Math.min(3,Math.abs(+out.dataB.fundingZ||0));
-    const l = Math.max(0,(+out.dataB.oiDelta24h||0)/5);
-    const vf=out.dataD.relative["15m"];
-    const v = vf==="very high"?2:vf==="high"?1:0;
-    const liq= out.dataB.liquidations||{};
-    const imb=Math.abs((liq.long24h||0)-(liq.short24h||0));
-    const ls = Math.min(2,imb/1e6);
-    const s  = b+l+v+ls;
+    const b=Math.min(3,Math.abs(+out.dataB.fundingZ||0));
+    const l=Math.max(0,(+out.dataB.oiDelta24h||0)/5);
+    const vf=out.dataD.relative["15m"], v=vf==="very high"?2:vf==="high"?1:0;
+    const liq=out.dataB.liquidations||{}, imb=Math.abs((liq.long24h||0)-(liq.short24h||0));
+    const ls=Math.min(2,imb/1e6), s=b+l+v+ls;
     out.dataE={ stressIndex:+s.toFixed(2), highRisk:s>=5, components:{biasScore:b,levScore:l,volScore:v,liqScore:ls}, source:"synthetic" };
   } catch(e) {
     out.dataE=null;
@@ -165,17 +160,14 @@ async function buildDashboardData() {
 
   // F: VPVR
   try {
-    const b4 = await safeJson(`https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=4h&limit=96`);
-    const b1 = await safeJson(`https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=1d&limit=30`);
-    const b7 = await safeJson(`https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=1w&limit=12`);
-    const vp = bars => {
+    const b4=await safeJson(`https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=4h&limit=96`);
+    const b1=await safeJson(`https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=1d&limit=30`);
+    const b7=await safeJson(`https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=1w&limit=12`);
+    const vp=bars=>{
       const bk={};
-      bars.forEach(b=>{
-        const px=(+b[2]+ +b[3]+ +b[4])/3, v=+b[5], k=Math.round(px/100)*100;
-        bk[k]=(bk[k]||0)+v;
-      });
+      bars.forEach(b=>{ const px=(+b[2]+ +b[3]+ +b[4])/3, v=+b[5], k=Math.round(px/100)*100; bk[k]=(bk[k]||0)+v; });
       const poc=+Object.entries(bk).sort((a,b)=>b[1]-a[1])[0][0];
-      return { poc, buckets:bk };
+      return { poc,buckets:bk };
     };
     out.dataF={ vpvr:{ "4h":vp(b4), "1d":vp(b1), "1w":vp(b7) } };
   } catch(e) {
@@ -184,8 +176,7 @@ async function buildDashboardData() {
 
   // G: Macro
   try {
-    const gv = await safeJson("https://api.coingecko.com/api/v3/global");
-    const g  = gv.data;
+    const gv=await safeJson("https://api.coingecko.com/api/v3/global"); const g=gv.data;
     out.dataG={ totalMcapT:+(g.total_market_cap.usd/1e12).toFixed(2), mcap24hPct:+g.market_cap_change_percentage_24h_usd.toFixed(2), btcDominance:+g.market_cap_percentage.btc.toFixed(2), ethDominance:+g.market_cap_percentage.eth.toFixed(2) };
   } catch(e) {
     out.errors.push(`G: ${e.message}`);
@@ -193,9 +184,7 @@ async function buildDashboardData() {
 
   // H: Sentiment
   try {
-    const fg = await safeJson("https://api.alternative.me/fng/?limit=1");
-    const f0 = fg.data?.[0];
-    if (!f0) throw new Error("FNG missing");
+    const fg=await safeJson("https://api.alternative.me/fng/?limit=1"); const f0=fg.data?.[0]; if(!f0) throw new Error("FNG missing");
     out.dataH={ fearGreed:`${f0.value} · ${f0.value_classification}` };
   } catch(e) {
     out.errors.push(`H: ${e.message}`);
@@ -204,7 +193,7 @@ async function buildDashboardData() {
   return out;
 }
 
-// Score and Telegram
+// Scoring & Telegram
 async function sendTelegram(msg) {
   console.log("▶ Sending Telegram:", msg);
   const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -228,14 +217,13 @@ async function sendTelegram(msg) {
     process.exit(1);
   }
 
-  // Extract 1h block for scoring
+  console.log("▶ Scoring…");
   const { long, short } = (() => {
     const A1h = data.dataA["1h"]||{};
     const B   = data.dataB||{};
-    const D   = data.dataD||{ cvd:{}, relative:{} };
+    const D   = data.dataD||{};
     const F4h = data.dataF?.vpvr?.["4h"]||{};
-    const E   = data.dataE||{ stressIndex:0 };
-
+    const E   = data.dataE||{};
     let L=0, S=0;
     if (A1h.rsi14 < 35) L++; else if (A1h.rsi14 > 65) S++;
     if (A1h.macdHist > 0) L++; else if (A1h.macdHist < 0) S++;
@@ -244,18 +232,15 @@ async function sendTelegram(msg) {
     if (B.liquidations.long24h > 2*B.liquidations.short24h) S++;
     if (D.cvd["1h"] > 1000 && (D.relative["15m"]==="high"||D.relative["15m"]==="very high")) L+=2;
     if (D.cvd["1h"] < -1000 && (D.relative["15m"]==="high"||D.relative["15m"]==="very high")) S+=2;
-    if (data.dataD["15m"].bullVol > data.dataD["15m"].bearVol) L++;
-    else if (data.dataD["15m"].bearVol > data.dataD["15m"].bullVol) S++;
+    if (data.dataD["15m"].bullVol > data.dataD["15m"].bearVol) L++; else if (data.dataD["15m"].bearVol > data.dataD["15m"].bullVol) S++;
     if (A1h.ema50 > F4h.poc) L++; else if (A1h.ema50 < F4h.poc) S++;
-    if (E.stressIndex>=3 && E.stressIndex<=5) { L++; S++; }
-
+    if (E.stressIndex >=3 && E.stressIndex <=5) { L++; S++; }
     return { long:L, short:S };
   })();
-
   console.log("▶ Scores:", { long, short });
 
   if (TEST_MODE) {
-    console.log("✅ TEST mode – sending test alert");
+    console.log("✅ TEST alert");
     await sendTelegram("✅ *TEST ALERT* — bot online");
     return;
   }
