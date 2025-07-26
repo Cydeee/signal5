@@ -1,6 +1,9 @@
 # .github/workflows/alert.yml
 name: telegram-alert
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
   schedule:
@@ -9,8 +12,6 @@ on:
 jobs:
   alert:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
 
     steps:
       - name: Checkout repository
@@ -30,7 +31,7 @@ jobs:
 
       - name: Debug local live.json
         run: |
-          echo "🔍 Checking public/live.json:"
+          echo "🔍 Checking public/live.json exists and preview:"
           ls -l public/live.json || { echo "❌ public/live.json not found"; exit 1; }
           echo "⏱ first 5 lines:"
           head -n5 public/live.json
