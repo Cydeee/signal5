@@ -1,4 +1,4 @@
-import fetch from 'node-fetch');
+import fetch from 'node-fetch';
 
 const ENDPOINT = 'https://btcsignal.netlify.app/data.json';
 
@@ -8,10 +8,12 @@ const ENDPOINT = 'https://btcsignal.netlify.app/data.json';
     const res = await fetch(ENDPOINT);
     console.log('HTTP status:', res.status, res.statusText);
     const text = await res.text();
-    console.log('Body preview (first 500 chars):\n', text.slice(0, 500).replace(/\n/g,'\n'));
-    let data;
+    console.log(
+      'Body preview (first 500 chars):\n',
+      text.slice(0, 500).replace(/\n/g, '\\n')
+    );
     try {
-      data = JSON.parse(text);
+      const data = JSON.parse(text);
       console.log('Parsed JSON top‑level keys:', Object.keys(data));
     } catch (parseErr) {
       console.error('❌ JSON.parse failed:', parseErr.message);
