@@ -1,14 +1,8 @@
 # .github/workflows/alert.yml
-name: telegram-alert
-
-permissions:
-  contents: none
+name: High-Conviction Alert
 
 on:
-  # Manual trigger in the Actions UI
   workflow_dispatch:
-
-  # Scheduled every 15 minutes
   schedule:
     - cron: "*/15 * * * *"
 
@@ -28,12 +22,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run Telegram alert
+      - name: Run standalone alert
         env:
-          BOT_TOKEN:  ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT_ID:    ${{ secrets.TELEGRAM_CHAT_ID }}
-          LIVE_URL:   "https://btcsignal.netlify.app/data.json"
           TEST_ALERT: "0"
         run: |
-          echo "▶ node .github/scripts/alert.js"
-          node .github/scripts/alert.js
+          echo "▶ node .github/scripts/alert-live.js"
+          node .github/scripts/alert-live.js
