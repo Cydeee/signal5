@@ -1,6 +1,12 @@
-[build]
-  publish = "public"
+# netlify.toml
 
+[build]
+  # Serve from the repo root since we no longer have a public/ folder
+  publish = "."
+  # No build command needed for edge functions only
+  command = ""
+
+# Edge Functions configuration
 [[edge_functions]]
   path     = "/data"
   function = "data"
