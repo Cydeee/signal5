@@ -1,12 +1,16 @@
 // scripts/generate-live.js
-// Node ≥18 CLI: fetch full A→H payload from Edge Function and write public/live.json
+// --------------------------------------------------
+// Simply mirror your Netlify Edge’s /data.json into public/live.json
+// (so GH Actions never calls Binance APIs directly)
+// --------------------------------------------------
 
 import { mkdir, writeFile } from 'fs/promises';
 
 async function main() {
-  const EDGE_URL = process.env.EDGE_URL || 'https://btcsignal.netlify.app/data.json';
-  console.log(`▶ Fetching data from Edge Function at ${EDGE_URL}`);
+  const EDGE_URL = process.env.EDGE_URL
+    || 'https://btcsignal.netlify.app/data.json';
 
+  console.log(`▶ Fetching payload from Edge Function → ${EDGE_URL}`);
   let res;
   try {
     res = await fetch(EDGE_URL, { cache: 'no-store' });
@@ -15,28 +19,27 @@ async function main() {
     process.exit(1);
   }
 
-  const text = await res.text();
+  const body = await res.text();
   if (!res.ok) {
-    const snippet = text.slice(0, 200).replace(/\n/g, ' ');
-    console.error(`❗ HTTP ${res.status} from ${EDGE_URL}\n   snippet: ${snippet}`);
+    console.error(`❗ HTTP ${res.status} from Edge:`, body.slice(0,200).replace(/\n/g,' '));
     process.exit(1);
   }
 
   let data;
   try {
-    data = JSON.parse(text);
+    data = JSON.parse(body);
   } catch (err) {
-    console.error('❌ Failed to parse JSON from Edge Function:', err);
+    console.error('❌ Invalid JSON from Edge Function:', err);
     process.exit(1);
   }
 
-  console.log('✅ Fetched and parsed JSON from Edge Function');
+  console.log('✅ Successfully fetched and parsed from Edge');
   await mkdir('public', { recursive: true });
   await writeFile('public/live.json', JSON.stringify(data, null, 2), 'utf8');
-  console.log('✅ public/live.json written');
+  console.log('✅ Wrote public/live.json');
 }
 
 main().catch(err => {
-  console.error('❌ Unexpected error in generate-live.js:', err);
+  console.error('❌ generate-live.js uncaught error:', err);
   process.exit(1);
 });
