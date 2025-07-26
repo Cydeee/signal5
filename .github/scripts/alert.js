@@ -4,11 +4,9 @@ const ENDPOINT = 'https://btcsignal.netlify.app/live.json';
 const TOKEN    = '8417682763:AAGZ1Darr0BgISB9JAG3RzHCQi-uqMylcOw';
 const CHAT_ID  = '6038110897';
 
-// Nested-get helper
 const get = (obj, path, def = null) =>
   path.split('.').reduce((o, k) => (o && o[k] != null ? o[k] : def), obj);
 
-// Send Telegram message
 async function send(text) {
   await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
     method: 'POST',
@@ -36,7 +34,6 @@ async function send(text) {
 
   console.log('✅ Keys:', Object.keys(data).join(', '));
 
-  // Extract metrics
   const m = {
     rsi1h:    get(data, 'dataA.1h.rsi14'),
     macd1h:   get(data, 'dataA.1h.macdHist'),
@@ -54,7 +51,6 @@ async function send(text) {
 
   console.log('▶️ Metrics:', m);
 
-  // Scoring rules
   const rules = [
     ['RSI<35 → +1 long',   () => m.rsi1h < 35, +1],
     ['RSI>65 → +1 short',  () => m.rsi1h > 65, -1],
@@ -86,7 +82,6 @@ async function send(text) {
     }
   }
 
-  // Stress gate
   if (m.stress > 7) {
     console.log(`⚠️ Stress ${m.stress} > 7 → abort`);
     return;
