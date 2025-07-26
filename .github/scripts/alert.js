@@ -1,17 +1,19 @@
 // .github/scripts/alert.js
 /**
  * Fetch fresh dashboard data from your Netlify Edge Function,
- * compute the high‑conviction score, and send a Telegram alert.
+ * print key sections for debugging, then compute & send the alert.
  *
- * Requires Node ≥18 for built‑in fetch.
+ * Bot Token and Chat ID are hard‑coded below.
  */
 
-const BOT       = process.env.BOT_TOKEN  || "8417682763:AAGZ1Darr0BgISB9JAG3RzHCQi-uqMylcOw";
-const CHAT      = process.env.CHAT_ID    || "6038110897";
+const BOT       = "8417682763:AAGZ1Darr0BgISB9JAG3RzHCQi-uqMylcOw";
+const CHAT      = "6038110897";
 const LIVE_URL  = process.env.LIVE_URL   || "https://btcsignal.netlify.app/data.json";
 const TEST      = process.env.TEST_ALERT === "1";
 
+// Send a Telegram message
 async function tg(msg) {
+  console.log("▶ Sending Telegram message:", msg);
   const res = await fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -23,10 +25,20 @@ async function tg(msg) {
     }),
   });
   const j = await res.json();
+  console.log("◀ Telegram API response:", j);
   if (!j.ok) throw new Error(`Telegram error: ${j.description}`);
 }
 
+// Compute long/short score with debug output
 function calc(raw) {
+  console.log("🔍 Raw payload preview:", {
+    dataA_1h: raw.dataA?.["1h"],
+    dataB:    raw.dataB,
+    dataD_1h: raw.dataD?.cvd?.["1h"],
+    dataF_4h: raw.dataF?.vpvr?.["4h"]?.poc,
+    dataE:    raw.dataE,
+  });
+
   const A = raw.dataA?.["1h"]   || {};
   const B = raw.dataB           || {};
   const D = raw.dataD           || {};
@@ -46,17 +58,20 @@ function calc(raw) {
   const poc4   = +F.vpvr?.["4h"]?.poc     || 0;
   const stress = +E.stressIndex           || 0;
 
+  console.log("▶ Indicator values:", { rsi, macd, fund, l24, s24, cvd, vf, price, poc4, stress });
+
   let L = 0, S = 0;
   if (rsi < 35) L++; else if (rsi > 65) S++;
   if (macd > 0) L++; else if (macd < 0) S++;
   if (fund < -1) L++; else if (fund > 1) S++;
   if (s24 > 2 * l24) L++; if (l24 > 2 * s24) S++;
-  if (cvd > 1000 && (vf === "high" || vf === "very high")) L += 2;
-  if (cvd < -1000 && (vf === "high" || vf === "very high")) S += 2;
+  if (cvd > 1000 && (vf==="high"||vf==="very high")) L += 2;
+  if (cvd < -1000 && (vf==="high"||vf==="very high")) S += 2;
   if (b15 > br15) L++; else if (br15 > b15) S++;
   if (price > poc4) L++; else if (price < poc4) S++;
   if (stress >= 3 && stress <= 5) { L++; S++; }
 
+  console.log("▶ Scores computed:", { long: L, short: S });
   return { long: L, short: S };
 }
 
@@ -65,10 +80,12 @@ function calc(raw) {
   let raw;
   try {
     const res = await fetch(LIVE_URL, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    raw = await res.json();
+    console.log("◀ HTTP status:", res.status);
+    const text = await res.text();
+    console.log("⏱ Payload size:", text.length, "bytes");
+    raw = JSON.parse(text);
   } catch (err) {
-    console.error("❌ Failed to fetch/parse JSON:", err);
+    console.error("❌ Failed to fetch or parse JSON:", err);
     process.exit(1);
   }
 
@@ -84,10 +101,10 @@ function calc(raw) {
   if (long >= THRESHOLD || short >= THRESHOLD) {
     const dir = long >= THRESHOLD ? "LONG" : "SHORT";
     const sc  = long >= THRESHOLD ? long : short;
-    console.log(`🚀 Sending alert: ${dir} (score ${sc})`);
+    console.log(`🚀 Condition met: ${dir} (score ${sc})`);
     await tg(`🚀 *High-Conviction ${dir}* (score ${sc})`);
   } else {
-    console.log(`🚫 No signal (long=${long}, short=${short})`);
+    console.log(`🚫 No high-conviction signal (long=${long}, short=${short})`);
   }
 })().catch(err => {
   console.error("❌ Unhandled error in alert.js:", err);
