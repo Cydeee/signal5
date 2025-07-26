@@ -3,10 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "generate": "node scripts/generate.js",
-    "alert":    "node .github/scripts/alert.js"
+    "generate-live": "node scripts/generate-live.js",
+    "alert": "node .github/scripts/alert.js"
   },
-  "dependencies": {
-    "node-fetch": "^3.3.2"
-  }
+  "dependencies": {}
 }
