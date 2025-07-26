@@ -9,24 +9,33 @@ on:
 jobs:
   alert:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
           node-version: "18"
 
-      - name: Generate fresh live.json
-        # Turn on verbose npm logging so if something breaks you get more detail in the step log.
-        env:
-          NPM_CONFIG_LOGLEVEL: verbose
-        run: |
-          # install deps (no package-lock.json needed)
-          npm install
-          # regenerate public/live.json
-          npm run generate-live
+      - name: Install dependencies
+        run: npm install
 
-      - name: Send Telegram alert
+      - name: Debug local live.json
+        run: |
+          echo "🔍 Checking public/live.json:"
+          ls -l public/live.json || { echo "❌ public/live.json not found"; exit 1; }
+          echo "⏱ Timestamp line:"
+          head -n3 public/live.json
+          echo "…snip…"
+          tail -n3 public/live.json
+
+      - name: Run Telegram alert
         run: npm run alert
         env:
           TEST_ALERT: "0"
