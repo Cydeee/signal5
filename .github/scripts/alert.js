@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 
-const ENDPOINT = 'https://btcsignal.netlify.app/data.json';   // ← static file written by GH Action
+const ENDPOINT = 'https://btcsignal.netlify.app/live.json';   // ← static file written by GH Action
 const TOKEN    = '8417682763:AAGZ1Darr0BgISB9JAG3RzHCQi-uqMylcOw';
 const CHAT_ID  = '6038110897';
 
