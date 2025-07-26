@@ -1,5 +1,4 @@
 {
-  "timestamp": 1753567725384,
   "dataA": {},
   "dataB": {
     "fundingZ": null,
@@ -12,22 +11,28 @@
   },
   "dataE": null,
   "dataF": null,
-  "dataG": null,
-  "dataH": null,
+  "dataG": {
+    "totalMcapT": 3.96,
+    "mcap24hPct": -2.91,
+    "btcDominance": 59.31,
+    "ethDominance": 11.44
+  },
+  "dataH": {
+    "fearGreed": "72 · Greed"
+  },
   "errors": [
-    "A[15m]: kl.map is not a function",
-    "A[1h]: kl.map is not a function",
-    "A[4h]: kl.map is not a function",
-    "A[1d]: kl.map is not a function",
-    "B: fr.slice is not a function",
-    "C[15m]: kl.map is not a function",
-    "C[1h]: kl.map is not a function",
-    "C[4h]: kl.map is not a function",
-    "C[1d]: HTTP 429 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=21",
-    "D: HTTP 429 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&startTime=1753566826861&endTime=1753567726861&limit=1500",
+    "A[15m]: HTTP 451",
+    "A[1h]: HTTP 451",
+    "A[4h]: HTTP 451",
+    "A[1d]: HTTP 451",
+    "B: HTTP 451",
+    "C[15m]: HTTP 451",
+    "C[1h]: HTTP 451",
+    "C[4h]: HTTP 451",
+    "C[1d]: HTTP 451",
+    "D: HTTP 451",
     "E: Cannot read properties of undefined (reading '15m')",
-    "F: HTTP 429 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=4h&limit=96",
-    "G: HTTP 429 at https://api.coingecko.com/api/v3/global",
-    "H: HTTP 429 at https://api.alternative.me/fng/?limit=1"
-  ]
+    "F: HTTP 451"
+  ],
+  "timestamp": 1753567843616
 }
