@@ -1,5 +1,5 @@
 // scripts/generate-live.js
-// Node ≥18 CLI: fetch full A→H payload from your Netlify Edge at /data.json and write public/live.json
+// Node ≥18 CLI: fetch full A→H payload from Edge Function and write public/live.json
 
 import { mkdir, writeFile } from 'fs/promises';
 
