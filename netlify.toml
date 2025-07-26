@@ -10,19 +10,3 @@
   path     = "/data.json"
   function = "data"
   cache    = "manual"
-
-[[edge_functions]]
-  path     = "/data.html"
-  function = "data-page"
-  cache    = "manual"
-
-[[redirects]]
-  from   = "/data.json"
-  to     = "/data.json"
-  status = 200
-  force  = true
-
-[[redirects]]
-  from   = "/*"
-  to     = "/index.html"
-  status = 200
