@@ -1,18 +1,33 @@
 {
-  "timestamp": 1753562991238,
+  "timestamp": 1753563435357,
   "dataA": {},
-  "dataB": null,
+  "dataB": {
+    "fundingZ": null,
+    "oiDelta24h": null,
+    "liquidations": null
+  },
   "dataC": {},
-  "dataD": {},
+  "dataD": {
+    "cvd": {}
+  },
   "dataE": null,
   "dataF": null,
   "dataG": null,
   "dataH": null,
   "errors": [
-    "A[15m]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m&limit=250",
-    "A[1h]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=250",
-    "A[4h]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=4h&limit=250",
-    "A[1d]: HTTP 451 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=250",
-    "B: HTTP 451 at https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=1000"
+    "A[15m]: kl.map is not a function",
+    "A[1h]: kl.map is not a function",
+    "A[4h]: kl.map is not a function",
+    "A[1d]: kl.map is not a function",
+    "B: fr.slice is not a function",
+    "C[15m]: kl.map is not a function",
+    "C[1h]: kl.map is not a function",
+    "C[4h]: kl.map is not a function",
+    "C[1d]: HTTP 429 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=21",
+    "D: HTTP 429 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&startTime=1753562537531&endTime=1753563437531&limit=1500",
+    "E: Cannot read properties of undefined (reading '15m')",
+    "F: HTTP 429 at https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=4h&limit=96",
+    "G: HTTP 429 at https://api.coingecko.com/api/v3/global",
+    "H: HTTP 429 at https://api.alternative.me/fng/?limit=1"
   ]
 }
