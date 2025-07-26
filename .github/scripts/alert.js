@@ -8,7 +8,7 @@ const CHAT_ID  = '6038110897';
 const get = (obj, path, def = null) =>
   path.split('.').reduce((o, k) => (o && o[k] != null ? o[k] : def), obj);
 
-// send Telegram
+// send to Telegram
 async function send(msg) {
   await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
     method: 'POST',
@@ -30,24 +30,23 @@ async function send(msg) {
     return;
   }
 
-  // dive into raw.data
-  const d = raw.data || {};
-  console.log("✅ Keys under raw.data:", Object.keys(d).join(', '));
+  // Sanity check top-level keys
+  console.log("✅ Top-level keys in JSON:", Object.keys(raw).join(', '));
 
-  // extract metrics properly under dataA, dataB, etc.
+  // extract metrics directly from raw.dataA, raw.dataB, etc.
   const metrics = {
-    rsi1h:    get(d, 'dataA.1h.rsi14'),
-    macd1h:   get(d, 'dataA.1h.macdHist'),
-    price:    get(d, 'dataA.1h.ema50'),
-    fundingZ: get(d, 'dataB.fundingZ'),
-    long24:   get(d, 'dataB.liquidations.long24h'),
-    short24:  get(d, 'dataB.liquidations.short24h'),
-    cvd1h:    get(d, 'dataD.cvd.1h'),
-    volFlag:  get(d, 'dataD.relative.1h', 'unknown'),
-    bull15:   get(d, 'dataD.15m.bullVol'),
-    bear15:   get(d, 'dataD.15m.bearVol'),
-    poc4h:    get(d, 'dataF.vpvr.4h.poc'),
-    stress:   get(d, 'dataE.stressIndex'),
+    rsi1h:    get(raw, 'dataA.1h.rsi14'),
+    macd1h:   get(raw, 'dataA.1h.macdHist'),
+    price:    get(raw, 'dataA.1h.ema50'),
+    fundingZ: get(raw, 'dataB.fundingZ'),
+    long24:   get(raw, 'dataB.liquidations.long24h'),
+    short24:  get(raw, 'dataB.liquidations.short24h'),
+    cvd1h:    get(raw, 'dataD.cvd.1h'),
+    volFlag:  get(raw, 'dataD.relative.1h', 'unknown'),
+    bull15:   get(raw, 'dataD.15m.bullVol'),
+    bear15:   get(raw, 'dataD.15m.bearVol'),
+    poc4h:    get(raw, 'dataF.vpvr.4h.poc'),
+    stress:   get(raw, 'dataE.stressIndex'),
   };
 
   console.log("▶️ Raw metrics:");
@@ -55,53 +54,55 @@ async function send(msg) {
     console.log(`  ${k.padEnd(8)}: ${v}`);
   }
 
-  // define rules
+  // rules
   const rules = [
-    ["RSI < 35 → +1 long",           ()=>metrics.rsi1h <35,            +1],
-    ["RSI > 65 → +1 short",          ()=>metrics.rsi1h >65,            -1],
-    ["MACD > 0 → +1 long",           ()=>metrics.macd1h>0,             +1],
-    ["MACD < 0 → +1 short",          ()=>metrics.macd1h<0,             -1],
-    ["FundingZ < -1 → +1 long",      ()=>metrics.fundingZ< -1,         +1],
-    ["FundingZ > 1 → +1 short",      ()=>metrics.fundingZ> 1,          -1],
-    ["Short24h>2×Long24h → +1 long", ()=>metrics.short24>metrics.long24*2, +1],
-    ["Long24h>2×Short24h → +1 short",()=>metrics.long24>metrics.short24*2, -1],
-    ["CVD1h>1000 & vol high→+2 long",()=>metrics.cvd1h>1000&&['high','very high'].includes(metrics.volFlag), +2],
-    ["CVD1h<-1000 & vol high→+2 short",()=>metrics.cvd1h<-1000&&['high','very high'].includes(metrics.volFlag), -2],
-    ["15m bull>bear → +1 long",      ()=>metrics.bull15>metrics.bear15, +1],
-    ["15m bear>bull → +1 short",     ()=>metrics.bear15>metrics.bull15, -1],
-    ["Price>PoC4h → +1 long",        ()=>metrics.price>metrics.poc4h,  +1],
-    ["Price<PoC4h → +1 short",       ()=>metrics.price<metrics.poc4h,  -1],
-    ["Stress 3–5 → +1 both",         ()=>metrics.stress>=3&&metrics.stress<=5, +1],
+    ["RSI < 35 → +1 long",           () => metrics.rsi1h < 35,    +1],
+    ["RSI > 65 → +1 short",          () => metrics.rsi1h > 65,    -1],
+    ["MACD > 0 → +1 long",           () => metrics.macd1h > 0,     +1],
+    ["MACD < 0 → +1 short",          () => metrics.macd1h < 0,     -1],
+    ["FundingZ < -1 → +1 long",      () => metrics.fundingZ < -1,  +1],
+    ["FundingZ > 1 → +1 short",      () => metrics.fundingZ > 1,   -1],
+    ["Short24h>2×Long24h → +1 long", () => metrics.short24 > metrics.long24*2, +1],
+    ["Long24h>2×Short24h → +1 short",() => metrics.long24 > metrics.short24*2, -1],
+    ["CVD1h>1000 & vol high→+2 long",() => metrics.cvd1h > 1000 && ['high','very high'].includes(metrics.volFlag), +2],
+    ["CVD1h<-1000 & vol high→+2 short",() => metrics.cvd1h < -1000 && ['high','very high'].includes(metrics.volFlag), -2],
+    ["15m bull>bear → +1 long",      () => metrics.bull15 > metrics.bear15, +1],
+    ["15m bear>bull → +1 short",     () => metrics.bear15 > metrics.bull15, -1],
+    ["Price>PoC4h → +1 long",        () => metrics.price > metrics.poc4h, +1],
+    ["Price<PoC4h → +1 short",       () => metrics.price < metrics.poc4h, -1],
+    ["Stress 3–5 → +1 both",         () => metrics.stress >= 3 && metrics.stress <= 5, +1],
   ];
 
-  // evaluate
-  let longScore=0, shortScore=0;
+  let longScore = 0, shortScore = 0;
   console.log("🧮 Evaluating rules:");
-  for (let [desc,cond,pts] of rules) {
+  for (let [desc, cond, pts] of rules) {
     if (cond()) {
-      console.log(`   ✓ ${desc} (${pts>0?'+'+pts:pts} pts)`);
-      pts>0 ? longScore+=pts : shortScore-=pts;
+      console.log(`   ✓ ${desc} (${pts > 0 ? '+'+pts : pts} pts)`);
+      pts > 0 ? (longScore += pts) : (shortScore -= pts);
     } else {
       console.log(`   ✗ ${desc}`);
     }
   }
 
   // stress gate
-  if (metrics.stress>7) {
-    console.log(`⚠️ Stress ${metrics.stress}>7 → abort`);
+  if (metrics.stress > 7) {
+    console.log(`⚠️ Stress ${metrics.stress} > 7 → abort`);
     return;
   }
 
   console.log(`➡️ Totals → long:${longScore}, short:${shortScore}`);
-  const threshold=6;
-  let dir = longScore>=threshold?'LONG': shortScore>=threshold?'SHORT': null;
+  const threshold = 6;
+  let dir = null;
+  if (longScore  >= threshold) dir = 'LONG';
+  if (shortScore >= threshold) dir = 'SHORT';
+
   if (!dir) {
     console.log(`❌ Below threshold ${threshold}; no alert.`);
     return;
   }
 
-  // send alert
-  const scoreVal = dir==='LONG'?longScore:shortScore;
+  // build & send alert
+  const scoreVal = dir === 'LONG' ? longScore : shortScore;
   const msg =
 `🚨 *High‑Conviction ${dir} (score ${scoreVal}/10)* 🚨
 
@@ -115,4 +116,4 @@ Liq 24h:    long \`${metrics.long24}\` | short \`${metrics.short24}\``
   console.log("📤 Sending:", msg.replace(/\n/g,' | '));
   await send(msg);
   console.log(`✅ Alert sent (${dir})`);
-})();  
+})();
