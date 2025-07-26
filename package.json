@@ -8,6 +8,6 @@
     "alert": "node .github/scripts/alert.js"
   },
   "dependencies": {
-    "node-fetch": "^3.4.4"      // <-- used only in GitHub Actions
+    "node-fetch": "^3.4.4"
   }
 }
