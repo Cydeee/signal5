@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // .github/scripts/alert.js
-import fetch from "node-fetch";
+// Uses Node 18’s built‑in global fetch — no import needed.
 
-const BOT  = "8417682763:AAGZ1Darr0BgISB9JAG3RzHCQi-uqMylcOw";   // ← your bot token
-const CHAT = "6038110897";                                       // ← your chat ID
+const BOT  = "8417682763:AAGZ1Darr0BgISB9JAG3RzHCQi-uqMylcOw";
+const CHAT = "6038110897";
 const LIVE = "https://btcsignal.netlify.app/live.json";
 
 const THRESHOLD = 6;
 
-/* ───── Telegram helper ───── */
+/* --- Telegram helper --- */
 async function tg(msg) {
   await fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
     method: "POST",
@@ -22,7 +22,7 @@ async function tg(msg) {
   });
 }
 
-/* ───── scoring (same logic you had) ───── */
+/* --- scoring (unchanged) --- */
 function score(raw) {
   const A = raw.dataA?.["1h"]  || {};
   const B = raw.dataB          || {};
@@ -57,12 +57,10 @@ function score(raw) {
   return { long: L, short: S };
 }
 
-/* ───── main ───── */
+/* --- main --- */
 (async () => {
-  console.log("🔍 Fetching live: " + LIVE);
-  const r   = await fetch(LIVE, { cache: "no-store" });
-  const raw = await r.json();
-
+  console.log("🔍 Fetching live:", LIVE);
+  const raw   = await (await fetch(LIVE, { cache: "no-store" })).json();
   const { long, short } = score(raw);
   console.log("▶ Scores:", { long, short });
 
