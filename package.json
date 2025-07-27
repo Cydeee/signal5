@@ -6,8 +6,5 @@
   "scripts": {
     "generate-live": "node scripts/generate-live.js",
     "alert": "node .github/scripts/alert.js"
-  },
-  "dependencies": {
-    "node-fetch": "^3.4.4"
   }
 }
