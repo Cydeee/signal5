@@ -1,44 +1,39 @@
 name: refresh-live-json
 
-# ──────────────────────────────────────────────
-# Runs every 15 minutes and on manual trigger.
-# It executes scripts/generate-live.js, which
-# writes public/live.json and commits the file.
-# Netlify then serves /live.json as a static asset.
-# ──────────────────────────────────────────────
 on:
-  workflow_dispatch:        # manual “Run workflow” button
+  workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"  # every 15 min
+    - cron: "*/15 * * * *"      # every 15 min
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) checkout repository
+      # 1) checkout code
       - uses: actions/checkout@v4
 
-      # 2) set up Node 18 and install deps (node-fetch)
+      # 2) Node 18 – no dependencies in this repo
       - uses: actions/setup-node@v3
         with:
           node-version: "18"
 
-      - name: Install dependencies
-        run: npm ci          # uses package-lock.json
+      # 3) (optional) generate a lockfile – succeeds even if there are zero deps
+      - name: Install (creates package-lock.json if missing)
+        run: npm install
 
-      # 3) build public/live.json
+      # 4) build public/live.json
       - name: Build live.json
         run: npm run generate-live
 
-      # 4) commit & push the updated file (if it changed)
+      # 5) commit the updated file (only if it changed)
       - name: Commit & push
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/live.json
+          git add public/live.json package-lock.json
           if ! git diff --cached --quiet; then
             git commit -m "chore: refresh live.json"
             git push
