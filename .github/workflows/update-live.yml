@@ -1,42 +1,40 @@
 name: refresh-live-json
 
+permissions:
+  contents: write   # ← gives the default token push rights
+
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"      # every 15 min
+    - cron: "*/15 * * * *"
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) checkout code
       - uses: actions/checkout@v4
 
-      # 2) Node 18 – no dependencies in this repo
       - uses: actions/setup-node@v3
-        with:
-          node-version: "18"
+        with: { node-version: "18" }
 
-      # 3) (optional) generate a lockfile – succeeds even if there are zero deps
-      - name: Install (creates package-lock.json if missing)
+      - name: Install (creates lockfile if missing)
         run: npm install
 
-      # 4) build public/live.json
       - name: Build live.json
         run: npm run generate-live
 
-      # 5) commit the updated file (only if it changed)
       - name: Commit & push
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -e
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/live.json package-lock.json
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: refresh live.json"
-            git push
-          else
-            echo "ℹ️  live.json unchanged – nothing to commit"
+          git add public/live.json package-lock.json || true
+          if git diff --cached --quiet; then
+            echo "ℹ️  nothing to commit"
+            exit 0
           fi
+          git commit -m "chore: refresh live.json"
+          git push origin HEAD:main
